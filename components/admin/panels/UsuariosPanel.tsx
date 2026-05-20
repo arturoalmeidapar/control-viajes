@@ -52,16 +52,27 @@ export function UsuariosPanel() {
   async function guardar() {
     setSaving(true)
     if (editando) {
-      const supabase = createClient()
-      await supabase.from('usuarios').update({ nombre: form.nombre, rol: form.rol, activo: form.activo }).eq('id', editando.id)
-      if (form.rol === 'residente') {
-        await supabase.from('residentes_obras').delete().eq('usuario_id', editando.id)
-        if (obrasAsignadas.length > 0) {
-          await supabase.from('residentes_obras').insert(obrasAsignadas.map(oid => ({ usuario_id: editando.id, obra_id: oid })))
-        }
+      const body: Record<string, unknown> = {
+        userId: editando.id,
+        nombre: form.nombre,
+        email: form.email,
+        rol: form.rol,
+        activo: form.activo,
+        obras: obrasAsignadas,
+      }
+      if (password) body.password = password
+      const res = await fetch('/api/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        alert(err.error ?? 'Error al actualizar usuario')
+        setSaving(false)
+        return
       }
     } else {
-      // Crear nuevo usuario via API
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -120,12 +131,12 @@ export function UsuariosPanel() {
           <div><label className="label">Nombre completo</label><input className="input" value={form.nombre} onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))} /></div>
           <div>
             <label className="label">Email</label>
-            <input type="email" className="input" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} disabled={!!editando} />
-            {editando && <p className="text-xs text-gray-400 mt-1">El email no se puede cambiar</p>}
+            <input type="email" className="input" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
           </div>
-          {!editando && (
-            <div><label className="label">Contraseña inicial</label><input type="password" className="input" value={password} onChange={e => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" /></div>
-          )}
+          <div>
+            <label className="label">{editando ? 'Nueva contraseña' : 'Contraseña inicial'}</label>
+            <input type="password" className="input" value={password} onChange={e => setPassword(e.target.value)} placeholder={editando ? 'Dejar vacío para no cambiar' : 'Mínimo 6 caracteres'} />
+          </div>
           <div>
             <label className="label">Rol</label>
             <div className="flex gap-2">
