@@ -49,7 +49,7 @@ export function RegistrarViaje({ contratistas, unidades, obras, distancias, tari
   const obraOrigen = obras.find(o => o.id === obraOrigenId)
   const obraDestino = obras.find(o => o.id === obraDestinoId)
 
-  const importeCalculado = tipoMaterial && m3 && distanciaKm && contratista
+  const importeCalculado = tipoMaterial && m3 && distanciaKm !== '' && contratista
     ? calcularImporte(Number(m3), Number(distanciaKm), tipoMaterial as TipoMaterial, tarifas, contratista)
     : 0
 
@@ -63,7 +63,7 @@ export function RegistrarViaje({ contratistas, unidades, obras, distancias, tari
   }
 
   async function handleSubmit() {
-    if (!foto || !tipoMaterial || !m3 || !distanciaKm) return
+    if (!foto || !tipoMaterial || !m3 || distanciaKm === '') return
     setSubmitting(true)
 
     const fotoTimestamp = new Date().toISOString()

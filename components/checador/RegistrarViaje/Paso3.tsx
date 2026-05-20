@@ -138,7 +138,7 @@ export function Paso3({
         <Row label="Destino" value={`${obraDestino?.nombre ?? '-'}${zonaDestino ? ` — ${zonaDestino}` : ''}`} />
         <Row label="Material" value={tipoMaterial ? ETIQUETAS_MATERIAL[tipoMaterial] : '-'} />
         <Row label="m³" value={m3 ? `${m3} m³` : '-'} />
-        <Row label="Distancia" value={distanciaKm ? `${distanciaKm} km` : '-'} />
+        <Row label="Distancia" value={distanciaKm !== '' ? `${distanciaKm} km` : '-'} />
         <div className="border-t border-gray-100 pt-2 mt-2 flex justify-between font-bold text-base">
           <span>Importe</span>
           <span className="text-naranja-600">{formatMoneda(importeCalculado)}</span>

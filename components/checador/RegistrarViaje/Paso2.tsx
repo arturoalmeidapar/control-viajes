@@ -43,6 +43,10 @@ export function Paso2({
 
   useEffect(() => {
     if (!obraOrigenId || !obraDestinoId) return
+    if (obraOrigenId === obraDestinoId) {
+      onDistancia(0, false)
+      return
+    }
     const dist = distancias.find(
       d => d.obra_origen_id === obraOrigenId && d.obra_destino_id === obraDestinoId
     )
@@ -63,11 +67,11 @@ export function Paso2({
     return true
   })
 
-  const importe = tipoMaterial && m3 && distanciaKm && contratista
+  const importe = tipoMaterial && m3 && distanciaKm !== '' && contratista
     ? calcularImporte(Number(m3), Number(distanciaKm), tipoMaterial, tarifas, contratista)
     : 0
 
-  const valido = obraOrigenId && obraDestinoId && tipoMaterial && m3 && distanciaKm &&
+  const valido = obraOrigenId && obraDestinoId && tipoMaterial && m3 && distanciaKm !== '' &&
     (!esCampoGolf || zonaDestino)
 
   return (
@@ -91,7 +95,7 @@ export function Paso2({
         <label className="label">Obra Destino</label>
         <select className="input" value={obraDestinoId} onChange={e => onObraDestino(e.target.value)}>
           <option value="">-- Seleccionar --</option>
-          {obras.filter(o => o.activo && o.id !== obraOrigenId).map(o => <option key={o.id} value={o.id}>{o.nombre}</option>)}
+          {obras.filter(o => o.activo).map(o => <option key={o.id} value={o.id}>{o.nombre}</option>)}
         </select>
       </div>
 
