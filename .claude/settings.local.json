@@ -20,7 +20,12 @@
       "Bash(npx vercel *)",
       "Bash(node -e ' *)",
       "Bash(node --env-file=.env.local scripts/update-users.mjs)",
-      "Bash(node --env-file=.env.local -e ' *)"
+      "Bash(node --env-file=.env.local -e ' *)",
+      "PowerShell(Test-Path *)",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell(vercel *)",
+      "PowerShell(npm i *)",
+      "PowerShell(npm install *)"
     ]
   }
 }
