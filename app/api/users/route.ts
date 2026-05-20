@@ -14,7 +14,7 @@ export async function PATCH(req: Request) {
   const admin = await verificarAdmin()
   if (!admin) return NextResponse.json({ error: 'Sin permisos' }, { status: 403 })
 
-  const { userId, nombre, email, rol, activo, password, obras } = await req.json()
+  const { userId, nombre, email, rol, activo, password, obras, puede_ver_todo } = await req.json()
   if (!userId || !nombre || !email || !rol) return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 })
 
   const adminClient = createAdminClient()
@@ -29,7 +29,7 @@ export async function PATCH(req: Request) {
   // Actualizar perfil en public.usuarios
   const { error: profileError } = await adminClient
     .from('usuarios')
-    .update({ nombre, email, rol, activo })
+    .update({ nombre, email, rol, activo, puede_ver_todo: puede_ver_todo ?? false })
     .eq('id', userId)
   if (profileError) return NextResponse.json({ error: profileError.message }, { status: 500 })
 

@@ -34,6 +34,7 @@ export interface Usuario {
   email: string
   rol: RolUsuario
   activo: boolean
+  puede_ver_todo?: boolean
   push_subscription: Record<string, unknown> | null
 }
 

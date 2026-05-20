@@ -52,19 +52,35 @@ export async function middleware(request: NextRequest) {
 
   const { data: perfil } = await supabase
     .from('usuarios')
-    .select('rol')
+    .select('rol, puede_ver_todo')
     .eq('id', user.id)
     .single()
 
-  const rol = perfil?.rol as RolUsuario | undefined
+  // Si falla la query (ej: columna nueva aún no existe), cae a solo rol
+  const { data: perfilBase } = !perfil
+    ? await supabase.from('usuarios').select('rol').eq('id', user.id).single()
+    : { data: null }
+
+  const rol = (perfil?.rol ?? perfilBase?.rol) as RolUsuario | undefined
+  const puedeVerTodo = perfil?.puede_ver_todo ?? false
 
   // Control de acceso por ruta
-  const esRutaAdmin = pathname.startsWith('/dashboard') || pathname.startsWith('/viajes') ||
-    pathname.startsWith('/estimacion') || pathname.startsWith('/admin')
+  const esRutaAdminPanel = pathname.startsWith('/admin')
+  const esRutaDashboardViajes = pathname.startsWith('/dashboard') || pathname.startsWith('/viajes')
+  const esRutaEstimacion = pathname.startsWith('/estimacion')
   const esRutaChecador = pathname.startsWith('/checador')
   const esRutaResidente = pathname.startsWith('/residente')
 
-  if (esRutaAdmin && rol !== 'admin') {
+  // Solo admin puede acceder al panel de configuración
+  if (esRutaAdminPanel && rol !== 'admin') {
+    return NextResponse.redirect(new URL(homeParaRol(rol), request.url))
+  }
+  // Dashboard y Viajes: admin o residente con puede_ver_todo
+  if (esRutaDashboardViajes && rol !== 'admin' && !(rol === 'residente' && puedeVerTodo)) {
+    return NextResponse.redirect(new URL(homeParaRol(rol), request.url))
+  }
+  // Estimación: admin o cualquier residente
+  if (esRutaEstimacion && rol !== 'admin' && rol !== 'residente') {
     return NextResponse.redirect(new URL(homeParaRol(rol), request.url))
   }
   if (esRutaChecador && rol !== 'checador' && rol !== 'admin') {

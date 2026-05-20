@@ -16,7 +16,7 @@ interface FilaResumen {
   importe: number
 }
 
-export function EstimacionSemanal() {
+export function EstimacionSemanal({ obrasFiltro }: { obrasFiltro?: string[] }) {
   const hoy = new Date()
   const semanaActual = inicioFinSemana(hoy)
   const [fechaDesde, setFechaDesde] = useState(isoFecha(semanaActual.inicio))
@@ -28,13 +28,19 @@ export function EstimacionSemanal() {
   async function buscar() {
     setLoading(true)
     const supabase = createClient()
-    const { data } = await supabase
+    let q = supabase
       .from('viajes')
       .select('m3, importe_calculado, tipo_material, contratistas(nombre), obras_destino:obras!viajes_obra_destino_id_fkey(nombre)')
       .eq('estado', 'confirmado')
       .gte('created_at', `${fechaDesde}T00:00:00`)
       .lte('created_at', `${fechaHasta}T23:59:59`)
       .order('created_at')
+
+    if (obrasFiltro && obrasFiltro.length > 0) {
+      q = q.in('obra_destino_id', obrasFiltro)
+    }
+
+    const { data } = await q
 
     const viajes = (data ?? []) as unknown as Viaje[]
 

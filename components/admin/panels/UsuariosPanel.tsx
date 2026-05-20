@@ -11,7 +11,7 @@ export function UsuariosPanel() {
   const [obras, setObras] = useState<Obra[]>([])
   const [modal, setModal] = useState(false)
   const [editando, setEditando] = useState<Usuario | null>(null)
-  const [form, setForm] = useState({ nombre: '', email: '', rol: 'checador' as RolUsuario, activo: true })
+  const [form, setForm] = useState({ nombre: '', email: '', rol: 'checador' as RolUsuario, activo: true, puede_ver_todo: false })
   const [password, setPassword] = useState('')
   const [obrasAsignadas, setObrasAsignadas] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
@@ -29,7 +29,7 @@ export function UsuariosPanel() {
   }
 
   async function abrirEditar(u: Usuario) {
-    setForm({ nombre: u.nombre, email: u.email, rol: u.rol, activo: u.activo })
+    setForm({ nombre: u.nombre, email: u.email, rol: u.rol, activo: u.activo, puede_ver_todo: u.puede_ver_todo ?? false })
     setEditando(u)
     const { data } = await createClient().from('residentes_obras').select('obra_id').eq('usuario_id', u.id)
     setObrasAsignadas((data ?? []).map(r => r.obra_id))
@@ -38,7 +38,7 @@ export function UsuariosPanel() {
   }
 
   function abrirNuevo() {
-    setForm({ nombre: '', email: '', rol: 'checador', activo: true })
+    setForm({ nombre: '', email: '', rol: 'checador', activo: true, puede_ver_todo: false })
     setEditando(null)
     setObrasAsignadas([])
     setPassword('')
@@ -58,6 +58,7 @@ export function UsuariosPanel() {
         email: form.email,
         rol: form.rol,
         activo: form.activo,
+        puede_ver_todo: form.puede_ver_todo,
         obras: obrasAsignadas,
       }
       if (password) body.password = password
@@ -149,6 +150,15 @@ export function UsuariosPanel() {
             <input type="checkbox" checked={form.activo} onChange={e => setForm(p => ({ ...p, activo: e.target.checked }))} className="w-4 h-4" />
             <span className="text-sm font-medium text-gray-700">Usuario activo</span>
           </label>
+          {form.rol === 'residente' && (
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" checked={form.puede_ver_todo} onChange={e => setForm(p => ({ ...p, puede_ver_todo: e.target.checked }))} className="w-4 h-4" />
+              <div>
+                <span className="text-sm font-medium text-gray-700">Puede ver todo</span>
+                <p className="text-xs text-gray-400">Acceso a Dashboard, Viajes y Estimación completa</p>
+              </div>
+            </label>
+          )}
           {form.rol === 'residente' && (
             <div>
               <label className="label">Obras asignadas</label>

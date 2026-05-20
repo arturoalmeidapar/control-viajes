@@ -11,7 +11,16 @@
       "Bash(Get-Content .gitignore)",
       "Bash(Select-String \"env\")",
       "Bash(git init *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git config *)",
+      "Bash(git branch *)",
+      "Bash(git remote *)",
+      "Bash(git push *)",
+      "Bash(npx vercel *)",
+      "Bash(node -e ' *)",
+      "Bash(node --env-file=.env.local scripts/update-users.mjs)",
+      "Bash(node --env-file=.env.local -e ' *)"
     ]
   }
 }
