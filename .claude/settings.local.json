@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx -y create-next-app@14 . --typescript --tailwind --eslint --app --no-src-dir --import-alias \"@/*\" --use-npm)",
+      "Read(//c/Users/AAlmeida/Documents/**)",
+      "Bash(npx -y create-next-app@14 cv-tmp --typescript --tailwind --eslint --app --no-src-dir --import-alias \"@/*\" --use-npm)",
+      "Bash(npm install *)",
+      "Bash(node -e \"const wp = require\\('web-push'\\); const keys = wp.generateVAPIDKeys\\(\\); console.log\\(JSON.stringify\\(keys, null, 2\\)\\);\")",
+      "Bash(npm run *)",
+      "Bash(node scripts/seed-users.mjs)",
+      "Bash(Get-Content .gitignore)",
+      "Bash(Select-String \"env\")",
+      "Bash(git init *)",
+      "Bash(git add *)"
+    ]
+  }
+}
