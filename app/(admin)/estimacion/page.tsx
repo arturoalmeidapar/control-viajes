@@ -9,11 +9,19 @@ export default async function EstimacionPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: perfil } = await supabase
+  const { data: perfilBase } = await supabase
     .from('usuarios')
-    .select('rol, puede_ver_todo')
+    .select('rol')
     .eq('id', user.id)
     .single()
+
+  const { data: perfilExtra } = await supabase
+    .from('usuarios')
+    .select('puede_ver_todo')
+    .eq('id', user.id)
+    .single()
+
+  const perfil = perfilBase ? { ...perfilBase, puede_ver_todo: perfilExtra?.puede_ver_todo ?? false } : null
 
   // Residente sin puede_ver_todo: filtrar a sus obras asignadas
   let obrasFiltro: string[] | undefined = undefined

@@ -8,13 +8,24 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: perfil } = await supabase
+  // Primero obtenemos el rol (query mínima, siempre funciona)
+  const { data: perfilBase } = await supabase
     .from('usuarios')
-    .select('rol, puede_ver_todo')
+    .select('rol')
     .eq('id', user.id)
     .single()
 
-  if (perfil?.rol === 'admin') {
+  // Intentamos obtener puede_ver_todo por separado (columna puede no existir en todos los entornos)
+  const { data: perfilExtra } = await supabase
+    .from('usuarios')
+    .select('puede_ver_todo')
+    .eq('id', user.id)
+    .single()
+
+  const rol = perfilBase?.rol
+  const puedeVerTodo = perfilExtra?.puede_ver_todo ?? false
+
+  if (rol === 'admin') {
     return (
       <div className="min-h-screen bg-gray-50">
         <NavAdmin />
@@ -25,7 +36,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <NavResidente puedeVerTodo={perfil?.puede_ver_todo ?? false} />
+      <NavResidente puedeVerTodo={puedeVerTodo} />
       <main className="px-4 py-4">{children}</main>
     </div>
   )
