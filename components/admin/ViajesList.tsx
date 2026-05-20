@@ -196,13 +196,19 @@ export function ViajesAdmin({ obrasOpciones, contratistasOpciones }: Props) {
       {/* Modal foto */}
       {viajeDetalle && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setViajeDetalle(null)}>
-          <div className="bg-white rounded-2xl p-4 max-w-sm w-full mx-4">
+          <div className="bg-white rounded-2xl p-4 max-w-sm w-full mx-4 space-y-3" onClick={e => e.stopPropagation()}>
             <Image src={viajeDetalle.foto_url} alt="Foto" width={400} height={300} className="w-full rounded-xl" />
+            {viajeDetalle.motivo_rechazo && (
+              <div className="bg-red-50 rounded-xl px-3 py-2 text-sm text-red-700">
+                <span className="font-semibold">Motivo rechazo:</span> {viajeDetalle.motivo_rechazo}
+              </div>
+            )}
             {viajeDetalle.gps_lat && (
-              <a href={`https://maps.google.com/?q=${viajeDetalle.gps_lat},${viajeDetalle.gps_lng}`} target="_blank" rel="noopener noreferrer" className="block text-center text-blue-600 text-sm mt-3 underline">
+              <a href={`https://maps.google.com/?q=${viajeDetalle.gps_lat},${viajeDetalle.gps_lng}`} target="_blank" rel="noopener noreferrer" className="block text-center text-blue-600 text-sm underline">
                 Ver GPS en Google Maps
               </a>
             )}
+            <button onClick={() => setViajeDetalle(null)} className="w-full text-center text-sm text-gray-400 py-1">Cerrar</button>
           </div>
         </div>
       )}

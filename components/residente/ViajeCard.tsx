@@ -36,7 +36,7 @@ export function ViajeCard({ viaje, onActualizado }: ViajeCardProps) {
   }
 
   async function rechazar() {
-    if (!motivo.trim()) return
+    if (motivo.trim().length < 10) return
     setLoading(true)
     const supabase = createClient()
     await supabase.from('viajes').update({
@@ -45,6 +45,19 @@ export function ViajeCard({ viaje, onActualizado }: ViajeCardProps) {
       residente_timestamp: new Date().toISOString(),
       motivo_rechazo: motivo.trim(),
     }).eq('id', viaje.id)
+
+    fetch('/api/push/rechazado', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        checadorId: viaje.checador_id,
+        contratistaNombre: contratista,
+        unidadIdentificador: unidad,
+        obraDestinoNombre: destino,
+        motivo: motivo.trim(),
+      }),
+    }).catch(() => {})
+
     setLoading(false)
     setRechazando(false)
     onActualizado()
@@ -115,16 +128,19 @@ export function ViajeCard({ viaje, onActualizado }: ViajeCardProps) {
             <div className="space-y-2">
               <textarea
                 className="input text-sm"
-                placeholder="Motivo del rechazo..."
-                rows={2}
+                placeholder="Motivo del rechazo (mínimo 10 caracteres)..."
+                rows={3}
                 value={motivo}
                 onChange={e => setMotivo(e.target.value)}
               />
+              <div className={`text-xs text-right ${motivo.trim().length >= 10 ? 'text-green-600' : 'text-gray-400'}`}>
+                {motivo.trim().length} / 10 mínimo
+              </div>
               <div className="flex gap-2">
                 <button className="btn-secondary flex-1 py-2 text-sm" onClick={() => setRechazando(false)}>
                   Cancelar
                 </button>
-                <button className="btn-danger flex-1 py-2 text-sm" onClick={rechazar} disabled={!motivo.trim() || loading}>
+                <button className="btn-danger flex-1 py-2 text-sm" onClick={rechazar} disabled={motivo.trim().length < 10 || loading}>
                   {loading ? 'Guardando...' : 'Rechazar'}
                 </button>
               </div>

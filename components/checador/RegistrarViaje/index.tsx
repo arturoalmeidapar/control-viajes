@@ -19,6 +19,42 @@ interface Props {
   checadorId: string
 }
 
+async function comprimirFoto(file: File, maxBytes = 400 * 1024): Promise<File> {
+  return new Promise(resolve => {
+    const objectUrl = URL.createObjectURL(file)
+    const img = new window.Image()
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl)
+      const MAX_DIM = 1920
+      let { width, height } = img
+      if (width > MAX_DIM || height > MAX_DIM) {
+        const ratio = Math.min(MAX_DIM / width, MAX_DIM / height)
+        width = Math.round(width * ratio)
+        height = Math.round(height * ratio)
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
+      let quality = 0.85
+      const compress = () => {
+        canvas.toBlob(blob => {
+          if (!blob) { resolve(file); return }
+          if (blob.size <= maxBytes || quality <= 0.1) {
+            resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }))
+          } else {
+            quality = Math.max(0.1, quality - 0.15)
+            compress()
+          }
+        }, 'image/jpeg', quality)
+      }
+      compress()
+    }
+    img.onerror = () => resolve(file)
+    img.src = objectUrl
+  })
+}
+
 export function RegistrarViaje({ contratistas, unidades, obras, distancias, tarifas, checadorId }: Props) {
   const router = useRouter()
   const [paso, setPaso] = useState<1 | 2 | 3>(1)
@@ -53,13 +89,17 @@ export function RegistrarViaje({ contratistas, unidades, obras, distancias, tari
     ? calcularImporte(Number(m3), Number(distanciaKm), tipoMaterial as TipoMaterial, tarifas, contratista)
     : 0
 
-  function handleFoto(file: File, preview: string) {
-    setFoto(file)
-    setFotoPreview(preview)
-    // Guardar base64 para offline
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async function handleFoto(file: File, _preview: string) {
+    const comprimida = await comprimirFoto(file)
+    setFoto(comprimida)
     const reader = new FileReader()
-    reader.onload = e => setFotoBase64(e.target?.result as string)
-    reader.readAsDataURL(file)
+    reader.onload = e => {
+      const b64 = e.target?.result as string
+      setFotoPreview(b64)
+      setFotoBase64(b64)
+    }
+    reader.readAsDataURL(comprimida)
   }
 
   async function handleSubmit() {
