@@ -214,8 +214,6 @@ export function RegistrarViaje({ contratistas, unidades, obras, distancias, tari
         <Paso2
           obras={obras}
           distancias={distancias}
-          tarifas={tarifas}
-          contratista={contratista}
           unidad={unidad}
           obraOrigenId={obraOrigenId}
           obraDestinoId={obraDestinoId}
@@ -244,7 +242,6 @@ export function RegistrarViaje({ contratistas, unidades, obras, distancias, tari
           tipoMaterial={tipoMaterial}
           m3={m3}
           distanciaKm={distanciaKm}
-          importeCalculado={importeCalculado}
           foto={foto}
           fotoPreview={fotoPreview}
           gpsLat={gpsLat}

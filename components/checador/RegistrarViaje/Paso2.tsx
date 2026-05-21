@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import type { Obra, Distancia, Tarifa, TipoMaterial, Contratista, Unidad } from '@/lib/supabase/types'
-import { calcularImporte, formatMoneda } from '@/lib/calc-importe'
+import type { Obra, Distancia, TipoMaterial, Unidad } from '@/lib/supabase/types'
 
 const MATERIALES: { id: TipoMaterial; label: string; soloTipo?: 'pipa' | 'camion' }[] = [
   { id: 'desmonte', label: 'Desmonte', soloTipo: 'camion' },
@@ -14,8 +13,6 @@ const MATERIALES: { id: TipoMaterial; label: string; soloTipo?: 'pipa' | 'camion
 interface Paso2Props {
   obras: Obra[]
   distancias: Distancia[]
-  tarifas: Tarifa[]
-  contratista: Contratista | undefined
   unidad: Unidad | undefined
   obraOrigenId: string
   obraDestinoId: string
@@ -35,7 +32,7 @@ interface Paso2Props {
 }
 
 export function Paso2({
-  obras, distancias, tarifas, contratista, unidad,
+  obras, distancias, unidad,
   obraOrigenId, obraDestinoId, zonaDestino, tipoMaterial, m3, distanciaKm, distanciaManual,
   onObraOrigen, onObraDestino, onZonaDestino, onTipoMaterial, onM3, onDistancia,
   onSiguiente, onAtras,
@@ -66,10 +63,6 @@ export function Paso2({
     if (mat.soloTipo && mat.soloTipo !== unidad.tipo) return false
     return true
   })
-
-  const importe = tipoMaterial && m3 && distanciaKm !== '' && contratista
-    ? calcularImporte(Number(m3), Number(distanciaKm), tipoMaterial, tarifas, contratista)
-    : 0
 
   const valido = obraOrigenId && obraDestinoId && tipoMaterial && m3 && distanciaKm !== '' &&
     (!esCampoGolf || zonaDestino)
@@ -170,13 +163,6 @@ export function Paso2({
         </div>
       )}
 
-      {/* Importe estimado */}
-      {importe > 0 && (
-        <div className="bg-naranja-50 rounded-2xl p-4 flex items-center justify-between">
-          <span className="text-sm font-medium text-naranja-700">Importe estimado</span>
-          <span className="text-2xl font-bold text-naranja-600">{formatMoneda(importe)}</span>
-        </div>
-      )}
 
       <div className="flex gap-3">
         <button className="btn-secondary flex-1" onClick={onAtras}>Atrás</button>

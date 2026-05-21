@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Camera, MapPin, AlertCircle } from 'lucide-react'
 import type { Contratista, Unidad, Obra, TipoMaterial } from '@/lib/supabase/types'
-import { formatMoneda } from '@/lib/calc-importe'
 import { ETIQUETAS_MATERIAL } from '@/lib/utils'
 
 interface Paso3Props {
@@ -15,7 +14,6 @@ interface Paso3Props {
   tipoMaterial: TipoMaterial | ''
   m3: number | ''
   distanciaKm: number | ''
-  importeCalculado: number
   foto: File | null
   fotoPreview: string
   gpsLat: number | null
@@ -29,7 +27,7 @@ interface Paso3Props {
 
 export function Paso3({
   contratista, unidad, obraOrigen, obraDestino, zonaDestino,
-  tipoMaterial, m3, distanciaKm, importeCalculado,
+  tipoMaterial, m3, distanciaKm,
   foto, fotoPreview, gpsLat, gpsLng, submitting,
   onFoto, onGps, onSubmit, onAtras,
 }: Paso3Props) {
@@ -139,10 +137,6 @@ export function Paso3({
         <Row label="Material" value={tipoMaterial ? ETIQUETAS_MATERIAL[tipoMaterial] : '-'} />
         <Row label="m³" value={m3 ? `${m3} m³` : '-'} />
         <Row label="Distancia" value={distanciaKm !== '' ? `${distanciaKm} km` : '-'} />
-        <div className="border-t border-gray-100 pt-2 mt-2 flex justify-between font-bold text-base">
-          <span>Importe</span>
-          <span className="text-naranja-600">{formatMoneda(importeCalculado)}</span>
-        </div>
       </div>
 
       <div className="flex gap-3">
