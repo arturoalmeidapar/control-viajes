@@ -18,6 +18,7 @@ interface Paso3Props {
   fotoPreview: string
   gpsLat: number | null
   gpsLng: number | null
+  notas: string
   submitting: boolean
   onFoto: (file: File, preview: string) => void
   onGps: (lat: number, lng: number) => void
@@ -28,7 +29,7 @@ interface Paso3Props {
 export function Paso3({
   contratista, unidad, obraOrigen, obraDestino, zonaDestino,
   tipoMaterial, m3, distanciaKm,
-  foto, fotoPreview, gpsLat, gpsLng, submitting,
+  foto, fotoPreview, gpsLat, gpsLng, notas, submitting,
   onFoto, onGps, onSubmit, onAtras,
 }: Paso3Props) {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -137,6 +138,7 @@ export function Paso3({
         <Row label="Material" value={tipoMaterial ? ETIQUETAS_MATERIAL[tipoMaterial] : '-'} />
         <Row label="m³" value={m3 ? `${m3} m³` : '-'} />
         <Row label="Distancia" value={distanciaKm !== '' ? `${distanciaKm} km` : '-'} />
+        {notas && <Row label="Notas" value={notas} />}
       </div>
 
       <div className="flex gap-3">

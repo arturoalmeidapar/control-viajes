@@ -21,20 +21,22 @@ interface Paso2Props {
   m3: number | ''
   distanciaKm: number | ''
   distanciaManual: boolean
+  notas: string
   onObraOrigen: (id: string) => void
   onObraDestino: (id: string) => void
   onZonaDestino: (v: string) => void
   onTipoMaterial: (t: TipoMaterial) => void
   onM3: (v: number | '') => void
   onDistancia: (v: number | '', manual: boolean) => void
+  onNotas: (v: string) => void
   onSiguiente: () => void
   onAtras: () => void
 }
 
 export function Paso2({
   obras, distancias, unidad,
-  obraOrigenId, obraDestinoId, zonaDestino, tipoMaterial, m3, distanciaKm, distanciaManual,
-  onObraOrigen, onObraDestino, onZonaDestino, onTipoMaterial, onM3, onDistancia,
+  obraOrigenId, obraDestinoId, zonaDestino, tipoMaterial, m3, distanciaKm, distanciaManual, notas,
+  onObraOrigen, onObraDestino, onZonaDestino, onTipoMaterial, onM3, onDistancia, onNotas,
   onSiguiente, onAtras,
 }: Paso2Props) {
 
@@ -163,6 +165,18 @@ export function Paso2({
         </div>
       )}
 
+
+      {/* Notas opcionales */}
+      <div>
+        <label className="label">Notas <span className="text-gray-400 font-normal text-xs">(opcional)</span></label>
+        <textarea
+          className="input"
+          placeholder="Ej: Lote 1, Sección norte, Hoyo 7..."
+          rows={2}
+          value={notas}
+          onChange={e => onNotas(e.target.value)}
+        />
+      </div>
 
       <div className="flex gap-3">
         <button className="btn-secondary flex-1" onClick={onAtras}>Atrás</button>

@@ -75,6 +75,7 @@ export function ViajesAdmin({ obrasOpciones, contratistasOpciones }: Props) {
       'Estado': v.estado,
       'Residente': (v.residente as { nombre?: string } | null)?.nombre ?? '',
       'Motivo rechazo': v.motivo_rechazo ?? '',
+      'Notas': v.notas ?? '',
     }))
     const ws = XLSX.utils.json_to_sheet(filas)
     const wb = XLSX.utils.book_new()
@@ -166,6 +167,7 @@ export function ViajesAdmin({ obrasOpciones, contratistasOpciones }: Props) {
                 <th className="text-left pb-3">Mat.</th>
                 <th className="text-right pb-3">Importe</th>
                 <th className="text-left pb-3">Estado</th>
+                <th className="text-left pb-3">Notas</th>
                 <th className="pb-3">Foto</th>
               </tr>
             </thead>
@@ -180,6 +182,7 @@ export function ViajesAdmin({ obrasOpciones, contratistasOpciones }: Props) {
                   <td className="py-2 text-gray-600">{ETIQUETAS_MATERIAL[v.tipo_material]}</td>
                   <td className="py-2 text-right font-medium">{formatMoneda(v.importe_calculado)}</td>
                   <td className="py-2"><BadgeEstado estado={v.estado as EstadoViaje} /></td>
+                  <td className="py-2 text-xs text-gray-500 max-w-[120px] truncate" title={v.notas ?? ''}>{v.notas ?? ''}</td>
                   <td className="py-2 text-center">
                     {v.foto_url && (
                       <button onClick={() => setViajeDetalle(v)} className="text-blue-500 text-xs underline">Ver</button>

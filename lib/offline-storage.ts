@@ -17,6 +17,7 @@ interface ViajeOfflineData {
   gpsLng: number | null
   fotoTimestamp: string
   checadorId: string
+  notas: string | null
 }
 
 interface ViajeOffline {

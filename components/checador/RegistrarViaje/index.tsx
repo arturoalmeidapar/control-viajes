@@ -71,6 +71,7 @@ export function RegistrarViaje({ contratistas, unidades, obras, distancias, tari
   const [m3, setM3] = useState<number | ''>('')
   const [distanciaKm, setDistanciaKm] = useState<number | ''>('')
   const [distanciaManual, setDistanciaManual] = useState(false)
+  const [notas, setNotas] = useState('')
 
   // Paso 3
   const [foto, setFoto] = useState<File | null>(null)
@@ -143,6 +144,7 @@ export function RegistrarViaje({ contratistas, unidades, obras, distancias, tari
           gps_lng: gpsLng,
           foto_timestamp: fotoTimestamp,
           estado: 'pendiente',
+          notas: notas.trim() || null,
         })
         .select('id')
         .single()
@@ -174,6 +176,7 @@ export function RegistrarViaje({ contratistas, unidades, obras, distancias, tari
           zonaDestino, tipoMaterial: tipoMaterial as TipoMaterial,
           m3: Number(m3), distanciaKm: Number(distanciaKm),
           importeCalculado, gpsLat, gpsLng, fotoTimestamp, checadorId,
+          notas: notas.trim() || null,
         },
         fotoBase64
       )
@@ -228,6 +231,8 @@ export function RegistrarViaje({ contratistas, unidades, obras, distancias, tari
           onTipoMaterial={setTipoMaterial}
           onM3={setM3}
           onDistancia={(v, manual) => { setDistanciaKm(v); setDistanciaManual(manual) }}
+          onNotas={setNotas}
+          notas={notas}
           onSiguiente={() => setPaso(3)}
           onAtras={() => setPaso(1)}
         />
@@ -246,6 +251,7 @@ export function RegistrarViaje({ contratistas, unidades, obras, distancias, tari
           fotoPreview={fotoPreview}
           gpsLat={gpsLat}
           gpsLng={gpsLng}
+          notas={notas}
           submitting={submitting}
           onFoto={handleFoto}
           onGps={(lat, lng) => { setGpsLat(lat); setGpsLng(lng) }}

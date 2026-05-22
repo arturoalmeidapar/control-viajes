@@ -95,6 +95,13 @@ export function ViajeCard({ viaje, onActualizado }: ViajeCardProps) {
         <span className="font-semibold text-naranja-600 ml-auto">{formatMoneda(viaje.importe_calculado)}</span>
       </div>
 
+      {/* Notas */}
+      {viaje.notas && (
+        <div className="bg-blue-50 rounded-xl px-3 py-2 text-sm text-blue-800">
+          <span className="font-medium text-blue-600">Notas: </span>{viaje.notas}
+        </div>
+      )}
+
       {/* GPS */}
       {viaje.gps_lat && (
         <a

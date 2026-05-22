@@ -82,6 +82,7 @@ export interface Viaje {
   residente_id: string | null
   residente_timestamp: string | null
   motivo_rechazo: string | null
+  notas: string | null
   // Datos relacionados (joins)
   contratistas?: Pick<Contratista, 'id' | 'nombre' | 'codigo'>
   unidades?: Pick<Unidad, 'id' | 'identificador' | 'tipo'>

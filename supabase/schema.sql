@@ -91,7 +91,8 @@ CREATE TABLE IF NOT EXISTS viajes (
   estado              estado_viaje NOT NULL DEFAULT 'pendiente',
   residente_id        uuid REFERENCES usuarios(id),
   residente_timestamp timestamptz,
-  motivo_rechazo      text
+  motivo_rechazo      text,
+  notas               text
 );
 
 -- Índice para consultas por fecha (muy frecuentes)
