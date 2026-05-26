@@ -86,9 +86,29 @@ export function RegistrarViaje({ contratistas, unidades, obras, distancias, tari
   const obraOrigen = obras.find(o => o.id === obraOrigenId)
   const obraDestino = obras.find(o => o.id === obraDestinoId)
 
-  const importeCalculado = tipoMaterial && m3 && distanciaKm !== '' && contratista
-    ? calcularImporte(Number(m3), Number(distanciaKm), tipoMaterial as TipoMaterial, tarifas, contratista)
+  // Para pipa/basura la distancia no aplica al cálculo (agua usa precio_m3, basura usa tarifa fija)
+  const importeCalculado = tipoMaterial && m3 && contratista
+    ? calcularImporte(
+        Number(m3),
+        Number(distanciaKm) || 0,
+        tipoMaterial as TipoMaterial,
+        tarifas,
+        contratista
+      )
     : 0
+
+  // Avanzar de Paso1 a Paso2: resetear todo el estado de Paso2
+  function handleAvanzarPaso2() {
+    setObraOrigenId('')
+    setObraDestinoId('')
+    setZonaDestino('')
+    setTipoMaterial('')
+    setM3('')
+    setDistanciaKm('')
+    setDistanciaManual(false)
+    setNotas('')
+    setPaso(2)
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async function handleFoto(file: File, _preview: string) {
@@ -104,15 +124,22 @@ export function RegistrarViaje({ contratistas, unidades, obras, distancias, tari
   }
 
   async function handleSubmit() {
-    if (!foto || !tipoMaterial || !m3 || distanciaKm === '') return
+    if (!foto || !tipoMaterial || !m3) return
+    const noNecesitaDistancia = tipoMaterial === 'agua' || tipoMaterial === 'basura'
+    if (!noNecesitaDistancia && distanciaKm === '') return
+
     setSubmitting(true)
 
     const fotoTimestamp = new Date().toISOString()
 
+    // obra_cobro_id: para desmonte/basura se cobra al origen; para material/agua al destino
+    const obraCobroId = (tipoMaterial === 'desmonte' || tipoMaterial === 'basura')
+      ? (obraOrigenId || null)
+      : (obraDestinoId || null)
+
     try {
       const supabase = createClient()
 
-      // Subir foto a Supabase Storage
       const ext = foto.name.split('.').pop() ?? 'jpg'
       const nombreFoto = `${checadorId}/${Date.now()}.${ext}`
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -125,7 +152,6 @@ export function RegistrarViaje({ contratistas, unidades, obras, distancias, tari
         .from('fotos-viajes')
         .getPublicUrl(uploadData.path)
 
-      // Crear viaje
       const { data: viajeData, error: viajeError } = await supabase
         .from('viajes')
         .insert({
@@ -133,11 +159,12 @@ export function RegistrarViaje({ contratistas, unidades, obras, distancias, tari
           contratista_id: contratistaId,
           unidad_id: unidadId,
           obra_origen_id: obraOrigenId,
-          obra_destino_id: obraDestinoId,
+          obra_destino_id: obraDestinoId || null,
+          obra_cobro_id: obraCobroId,
           zona_destino: zonaDestino || null,
           m3: Number(m3),
           tipo_material: tipoMaterial as TipoMaterial,
-          distancia_km: Number(distanciaKm),
+          distancia_km: Number(distanciaKm) || 0,
           importe_calculado: importeCalculado,
           foto_url: urlData.publicUrl,
           gps_lat: gpsLat,
@@ -151,30 +178,30 @@ export function RegistrarViaje({ contratistas, unidades, obras, distancias, tari
 
       if (viajeError) throw viajeError
 
-      // Enviar notificación push al residente
+      // Notificar al residente de la obra que paga
       fetch('/api/push/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           viajeId: viajeData.id,
-          obraDestinoId,
+          obraDestinoId: obraCobroId,
           contratistaNombre: contratista?.nombre,
           unidadIdentificador: unidad?.identificador,
           m3: Number(m3),
           tipoMaterial,
         }),
-      }).catch(() => {}) // No bloquear si push falla
+      }).catch(() => {})
 
       router.push('/checador')
       router.refresh()
 
     } catch {
-      // Guardar offline si hay error de red
       await guardarViajeOffline(
         {
-          contratistaId, unidadId, obraOrigenId, obraDestinoId,
+          contratistaId, unidadId, obraOrigenId,
+          obraDestinoId: obraDestinoId || null,
           zonaDestino, tipoMaterial: tipoMaterial as TipoMaterial,
-          m3: Number(m3), distanciaKm: Number(distanciaKm),
+          m3: Number(m3), distanciaKm: Number(distanciaKm) || 0,
           importeCalculado, gpsLat, gpsLng, fotoTimestamp, checadorId,
           notas: notas.trim() || null,
         },
@@ -210,7 +237,7 @@ export function RegistrarViaje({ contratistas, unidades, obras, distancias, tari
           unidadId={unidadId}
           onContratista={setContratistaId}
           onUnidad={setUnidadId}
-          onSiguiente={() => setPaso(2)}
+          onSiguiente={handleAvanzarPaso2}
         />
       )}
       {paso === 2 && (
@@ -228,7 +255,7 @@ export function RegistrarViaje({ contratistas, unidades, obras, distancias, tari
           onObraOrigen={setObraOrigenId}
           onObraDestino={setObraDestinoId}
           onZonaDestino={setZonaDestino}
-          onTipoMaterial={setTipoMaterial}
+          onTipoMaterial={v => setTipoMaterial(v as TipoMaterial | '')}
           onM3={setM3}
           onDistancia={(v, manual) => { setDistanciaKm(v); setDistanciaManual(manual) }}
           onNotas={setNotas}

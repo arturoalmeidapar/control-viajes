@@ -7,7 +7,7 @@ interface ViajeOfflineData {
   contratistaId: string
   unidadId: string
   obraOrigenId: string
-  obraDestinoId: string
+  obraDestinoId: string | null
   zonaDestino: string
   tipoMaterial: TipoMaterial
   m3: number

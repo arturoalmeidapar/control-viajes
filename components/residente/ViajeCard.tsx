@@ -21,7 +21,11 @@ export function ViajeCard({ viaje, onActualizado }: ViajeCardProps) {
   const contratista = (viaje.contratistas as { nombre: string } | null)?.nombre ?? '-'
   const unidad = (viaje.unidades as { identificador: string } | null)?.identificador ?? '-'
   const origen = (viaje.obras_origen as { nombre: string } | null)?.nombre ?? '-'
-  const destino = (viaje.obras_destino as { nombre: string } | null)?.nombre ?? '-'
+  const destino = viaje.tipo_material === 'desmonte'
+    ? 'Trinchera'
+    : viaje.tipo_material === 'basura'
+    ? 'Basurero municipal'
+    : (viaje.obras_destino as { nombre: string } | null)?.nombre ?? '-'
 
   async function confirmar() {
     setLoading(true)

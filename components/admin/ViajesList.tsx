@@ -47,7 +47,7 @@ export function ViajesAdmin({ obrasOpciones, contratistasOpciones }: Props) {
       .lte('created_at', `${fechaHasta}T23:59:59`)
       .order('created_at', { ascending: false })
 
-    if (obraId) q = q.eq('obra_destino_id', obraId)
+    if (obraId) q = q.eq('obra_cobro_id', obraId)
     if (contratistaId) q = q.eq('contratista_id', contratistaId)
     if (estado) q = q.eq('estado', estado)
     if (material) q = q.eq('tipo_material', material)
@@ -66,7 +66,9 @@ export function ViajesAdmin({ obrasOpciones, contratistasOpciones }: Props) {
       'Contratista': (v.contratistas as { nombre?: string } | null)?.nombre ?? '',
       'Unidad': (v.unidades as { identificador?: string } | null)?.identificador ?? '',
       'Origen': (v.obras_origen as { nombre?: string } | null)?.nombre ?? '',
-      'Destino': (v.obras_destino as { nombre?: string } | null)?.nombre ?? '',
+      'Destino': v.tipo_material === 'desmonte' ? 'Trinchera' :
+                 v.tipo_material === 'basura' ? 'Basurero municipal' :
+                 (v.obras_destino as { nombre?: string } | null)?.nombre ?? '',
       'Zona': v.zona_destino ?? '',
       'Material': ETIQUETAS_MATERIAL[v.tipo_material],
       'm³': v.m3,
@@ -118,7 +120,7 @@ export function ViajesAdmin({ obrasOpciones, contratistasOpciones }: Props) {
             </select>
           </div>
           <div>
-            <label className="label text-xs">Obra destino</label>
+            <label className="label text-xs">Obra cobro</label>
             <select className="input text-sm py-2" value={obraId} onChange={e => setObraId(e.target.value)}>
               <option value="">Todas</option>
               {obrasOpciones.map(o => <option key={o.id} value={o.id}>{o.nombre}</option>)}
@@ -177,7 +179,11 @@ export function ViajesAdmin({ obrasOpciones, contratistasOpciones }: Props) {
                   <td className="py-2 text-gray-500 whitespace-nowrap">{new Date(v.created_at).toLocaleString('es-MX', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}</td>
                   <td className="py-2">{(v.contratistas as { nombre?: string } | null)?.nombre}</td>
                   <td className="py-2 text-gray-600">{(v.unidades as { identificador?: string } | null)?.identificador}</td>
-                  <td className="py-2 text-xs max-w-[100px] truncate">{(v.obras_destino as { nombre?: string } | null)?.nombre}</td>
+                  <td className="py-2 text-xs max-w-[100px] truncate">
+                    {v.tipo_material === 'desmonte' ? 'Trinchera' :
+                     v.tipo_material === 'basura' ? 'Basurero municipal' :
+                     (v.obras_destino as { nombre?: string } | null)?.nombre ?? '-'}
+                  </td>
                   <td className="py-2 text-right">{v.m3}</td>
                   <td className="py-2 text-gray-600">{ETIQUETAS_MATERIAL[v.tipo_material]}</td>
                   <td className="py-2 text-right font-medium">{formatMoneda(v.importe_calculado)}</td>

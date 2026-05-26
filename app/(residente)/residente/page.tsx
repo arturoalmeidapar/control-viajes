@@ -19,7 +19,6 @@ export default function ResidentePage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    // Obtener obras asignadas al residente
     const { data: asignaciones } = await supabase
       .from('residentes_obras')
       .select('obra_id')
@@ -31,10 +30,13 @@ export default function ResidentePage() {
     const hoy = new Date()
     const inicioHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).toISOString()
 
+    // Incluir viajes donde obra_cobro_id coincide (registros nuevos)
+    // O donde obra_destino_id coincide y obra_cobro_id es null (registros anteriores)
+    const idList = obraIds.join(',')
     const { data } = await supabase
       .from('viajes')
       .select('*, contratistas(nombre,codigo), unidades(identificador,tipo), obras_origen:obras!viajes_obra_origen_id_fkey(nombre), obras_destino:obras!viajes_obra_destino_id_fkey(nombre,es_campo_golf)')
-      .in('obra_destino_id', obraIds)
+      .or(`obra_cobro_id.in.(${idList}),and(obra_cobro_id.is.null,obra_destino_id.in.(${idList}))`)
       .eq('estado', 'pendiente')
       .gte('created_at', inicioHoy)
       .order('created_at', { ascending: false })
@@ -45,7 +47,6 @@ export default function ResidentePage() {
 
   useEffect(() => {
     cargar()
-    // Suscribir a cambios en tiempo real
     const supabase = createClient()
     const channel = supabase
       .channel('residente-viajes')
@@ -68,7 +69,6 @@ export default function ResidentePage() {
         </button>
       </div>
 
-      {/* Notificaciones push */}
       {!notifOk && (
         <button
           onClick={handleSuscribirNotificaciones}

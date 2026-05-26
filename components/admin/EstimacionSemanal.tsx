@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase/client'
 import { Download } from 'lucide-react'
 import { formatMoneda } from '@/lib/calc-importe'
 import { ETIQUETAS_MATERIAL, inicioFinSemana, isoFecha } from '@/lib/utils'
-import type { Viaje } from '@/lib/supabase/types'
 
 interface FilaResumen {
   contratista: string
@@ -14,6 +13,14 @@ interface FilaResumen {
   viajes: number
   m3: number
   importe: number
+}
+
+interface ViajeEstimacion {
+  m3: number
+  importe_calculado: number
+  tipo_material: string
+  contratistas: { nombre: string } | null
+  obra_cobro: { nombre: string } | null
 }
 
 export function EstimacionSemanal({ obrasFiltro }: { obrasFiltro?: string[] }) {
@@ -30,25 +37,24 @@ export function EstimacionSemanal({ obrasFiltro }: { obrasFiltro?: string[] }) {
     const supabase = createClient()
     let q = supabase
       .from('viajes')
-      .select('m3, importe_calculado, tipo_material, contratistas(nombre), obras_destino:obras!viajes_obra_destino_id_fkey(nombre)')
+      .select('m3, importe_calculado, tipo_material, contratistas(nombre), obra_cobro:obras!viajes_obra_cobro_id_fkey(nombre)')
       .eq('estado', 'confirmado')
       .gte('created_at', `${fechaDesde}T00:00:00`)
       .lte('created_at', `${fechaHasta}T23:59:59`)
       .order('created_at')
 
     if (obrasFiltro && obrasFiltro.length > 0) {
-      q = q.in('obra_destino_id', obrasFiltro)
+      q = q.in('obra_cobro_id', obrasFiltro)
     }
 
     const { data } = await q
+    const viajes = (data ?? []) as unknown as ViajeEstimacion[]
 
-    const viajes = (data ?? []) as unknown as Viaje[]
-
-    // Agrupar por contratista + obra + material
+    // Agrupar por contratista + obra cobro + material
     const mapa: Record<string, FilaResumen> = {}
     for (const v of viajes) {
-      const cont = (v.contratistas as { nombre?: string } | null)?.nombre ?? 'Sin nombre'
-      const obra = (v.obras_destino as { nombre?: string } | null)?.nombre ?? 'Sin obra'
+      const cont = v.contratistas?.nombre ?? 'Sin nombre'
+      const obra = v.obra_cobro?.nombre ?? 'Sin obra'
       const mat = ETIQUETAS_MATERIAL[v.tipo_material]
       const key = `${cont}||${obra}||${mat}`
       if (!mapa[key]) mapa[key] = { contratista: cont, obra, material: mat, viajes: 0, m3: 0, importe: 0 }
@@ -65,16 +71,6 @@ export function EstimacionSemanal({ obrasFiltro }: { obrasFiltro?: string[] }) {
   async function exportarExcel() {
     const XLSX = await import('xlsx')
     const wb = XLSX.utils.book_new()
-
-    // Hoja de detalle por contratista
-    const filaExcel = filas.map(f => ({
-      'Contratista': f.contratista,
-      'Obra': f.obra,
-      'Material': f.material,
-      '# Viajes': f.viajes,
-      'm³': f.m3,
-      'Importe': f.importe,
-    }))
 
     // Agregar totales por contratista
     const contistasSeen = new Set<string>()
@@ -108,8 +104,6 @@ export function EstimacionSemanal({ obrasFiltro }: { obrasFiltro?: string[] }) {
     const ws = XLSX.utils.json_to_sheet(filasConTotales)
     ws['!cols'] = [{ wch: 30 }, { wch: 35 }, { wch: 12 }, { wch: 10 }, { wch: 8 }, { wch: 14 }]
     XLSX.utils.book_append_sheet(wb, ws, 'Estimación')
-
-    void filaExcel // silencia advertencia de variable no usada
     XLSX.writeFile(wb, `estimacion_${fechaDesde}_${fechaHasta}.xlsx`)
   }
 

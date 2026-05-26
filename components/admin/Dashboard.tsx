@@ -14,7 +14,7 @@ interface ViajeResumen {
   tipo_material: string
   created_at: string
   contratistas: { nombre: string; codigo: string } | null
-  obras_destino: { nombre: string } | null
+  obra_cobro: { nombre: string } | null
 }
 
 export function DashboardAdmin({ viajes: inicial }: { viajes: ViajeResumen[] }) {
@@ -31,7 +31,7 @@ export function DashboardAdmin({ viajes: inicial }: { viajes: ViajeResumen[] }) 
       .on('postgres_changes', { event: '*', schema: 'public', table: 'viajes' }, async () => {
         const { data } = await supabase
           .from('viajes')
-          .select('id, estado, m3, importe_calculado, tipo_material, created_at, contratistas(nombre,codigo), obras_destino:obras!viajes_obra_destino_id_fkey(nombre)')
+          .select('id, estado, m3, importe_calculado, tipo_material, created_at, contratistas(nombre,codigo), obra_cobro:obras!viajes_obra_cobro_id_fkey(nombre)')
           .gte('created_at', inicioHoy)
           .lte('created_at', finHoy)
           .order('created_at', { ascending: false })
@@ -58,10 +58,10 @@ export function DashboardAdmin({ viajes: inicial }: { viajes: ViajeResumen[] }) 
     porContratista[nombre].importe += v.importe_calculado
   }
 
-  // Agrupar por obra destino
+  // Agrupar por obra cobro (destino para material/agua, origen para desmonte/basura)
   const porObra: Record<string, { nombre: string; viajes: number; m3: number; importe: number }> = {}
   for (const v of confirmados) {
-    const nombre = v.obras_destino?.nombre ?? 'Sin obra'
+    const nombre = v.obra_cobro?.nombre ?? 'Sin obra'
     if (!porObra[nombre]) porObra[nombre] = { nombre, viajes: 0, m3: 0, importe: 0 }
     porObra[nombre].viajes++
     porObra[nombre].m3 += v.m3
@@ -117,9 +117,9 @@ export function DashboardAdmin({ viajes: inicial }: { viajes: ViajeResumen[] }) 
           )}
         </div>
 
-        {/* Por obra */}
+        {/* Por obra (cobro) */}
         <div className="card">
-          <h2 className="font-semibold text-gray-900 mb-3">Por Obra</h2>
+          <h2 className="font-semibold text-gray-900 mb-3">Por Obra (cobro)</h2>
           {Object.values(porObra).length === 0 ? (
             <p className="text-sm text-gray-400">Sin viajes confirmados</p>
           ) : (
@@ -156,7 +156,7 @@ export function DashboardAdmin({ viajes: inicial }: { viajes: ViajeResumen[] }) 
               <tr className="text-gray-500 border-b text-xs uppercase">
                 <th className="text-left pb-2">Hora</th>
                 <th className="text-left pb-2">Contratista</th>
-                <th className="text-left pb-2">Obra</th>
+                <th className="text-left pb-2">Obra cobro</th>
                 <th className="text-right pb-2">m³</th>
                 <th className="text-left pb-2">Material</th>
                 <th className="text-right pb-2">Importe</th>
@@ -168,7 +168,7 @@ export function DashboardAdmin({ viajes: inicial }: { viajes: ViajeResumen[] }) 
                 <tr key={v.id} className="border-b border-gray-50 hover:bg-gray-50">
                   <td className="py-1.5 text-gray-500">{new Date(v.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</td>
                   <td className="py-1.5 text-gray-900">{v.contratistas?.nombre}</td>
-                  <td className="py-1.5 text-gray-600 text-xs max-w-[120px] truncate">{v.obras_destino?.nombre}</td>
+                  <td className="py-1.5 text-gray-600 text-xs max-w-[120px] truncate">{v.obra_cobro?.nombre ?? '-'}</td>
                   <td className="py-1.5 text-right">{v.m3}</td>
                   <td className="py-1.5 text-gray-600">{ETIQUETAS_MATERIAL[v.tipo_material]}</td>
                   <td className="py-1.5 text-right font-medium">{formatMoneda(v.importe_calculado)}</td>

@@ -133,11 +133,25 @@ export function Paso3({
         <h3 className="font-semibold text-gray-900 mb-3">Resumen del viaje</h3>
         <Row label="Contratista" value={contratista?.nombre ?? '-'} />
         <Row label="Unidad" value={unidad?.identificador ?? '-'} />
-        <Row label="Origen" value={obraOrigen?.nombre ?? '-'} />
-        <Row label="Destino" value={`${obraDestino?.nombre ?? '-'}${zonaDestino ? ` — ${zonaDestino}` : ''}`} />
+        <Row label="Origen" value={
+          tipoMaterial === 'agua'
+            ? (obraOrigen?.nombre ?? 'Lago 2da Fase')
+            : (obraOrigen?.nombre ?? '-')
+        } />
+        <Row label="Destino" value={
+          tipoMaterial === 'desmonte'
+            ? 'Trinchera'
+            : tipoMaterial === 'basura'
+            ? 'Basurero municipal'
+            : `${obraDestino?.nombre ?? '-'}${zonaDestino ? ` — ${zonaDestino}` : ''}`
+        } />
         <Row label="Material" value={tipoMaterial ? ETIQUETAS_MATERIAL[tipoMaterial] : '-'} />
         <Row label="m³" value={m3 ? `${m3} m³` : '-'} />
-        <Row label="Distancia" value={distanciaKm !== '' ? `${distanciaKm} km` : '-'} />
+        <Row label="Distancia" value={
+          tipoMaterial === 'agua' || tipoMaterial === 'basura'
+            ? 'Tarifa fija'
+            : distanciaKm !== '' ? `${distanciaKm} km` : '-'
+        } />
         {notas && <Row label="Notas" value={notas} />}
       </div>
 

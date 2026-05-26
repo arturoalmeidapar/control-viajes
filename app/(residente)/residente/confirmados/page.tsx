@@ -27,10 +27,11 @@ export default function ConfirmadosPage() {
     const hoy = new Date()
     const inicioHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).toISOString()
 
+    const idList = obraIds.join(',')
     const { data } = await supabase
       .from('viajes')
       .select('*, contratistas(nombre,codigo), unidades(identificador,tipo), obras_origen:obras!viajes_obra_origen_id_fkey(nombre), obras_destino:obras!viajes_obra_destino_id_fkey(nombre,es_campo_golf)')
-      .in('obra_destino_id', obraIds)
+      .or(`obra_cobro_id.in.(${idList}),and(obra_cobro_id.is.null,obra_destino_id.in.(${idList}))`)
       .in('estado', ['confirmado', 'rechazado'])
       .gte('created_at', inicioHoy)
       .order('residente_timestamp', { ascending: false })

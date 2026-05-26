@@ -1,9 +1,10 @@
 import { NavMobile } from '@/components/NavMobile'
-import { Home, PlusCircle } from 'lucide-react'
+import { Home, BarChart2, PlusCircle } from 'lucide-react'
 
 export default function CheckadorLayout({ children }: { children: React.ReactNode }) {
   const items = [
     { href: '/checador', label: 'Inicio', icon: <Home className="w-5 h-5" /> },
+    { href: '/checador/resumen', label: 'Resumen', icon: <BarChart2 className="w-5 h-5" /> },
     { href: '/checador/registrar', label: 'Registrar', icon: <PlusCircle className="w-5 h-5" /> },
   ]
 

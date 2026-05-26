@@ -68,7 +68,8 @@ export interface Viaje {
   contratista_id: string
   unidad_id: string
   obra_origen_id: string
-  obra_destino_id: string
+  obra_destino_id: string | null
+  obra_cobro_id: string | null
   zona_destino: string | null
   m3: number
   tipo_material: TipoMaterial
