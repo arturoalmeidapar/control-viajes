@@ -9,10 +9,17 @@ export default async function ViajesPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: obras }, { data: contratistas }] = await Promise.all([
+  const [{ data: obras }, { data: contratistas }, { data: perfil }] = await Promise.all([
     supabase.from('obras').select('id, nombre').eq('activo', true).order('nombre'),
     supabase.from('contratistas').select('id, nombre').eq('activo', true).order('nombre'),
+    supabase.from('usuarios').select('rol').eq('id', user.id).single(),
   ])
 
-  return <ViajesAdmin obrasOpciones={obras ?? []} contratistasOpciones={contratistas ?? []} />
+  return (
+    <ViajesAdmin
+      obrasOpciones={obras ?? []}
+      contratistasOpciones={contratistas ?? []}
+      esAdmin={perfil?.rol === 'admin'}
+    />
+  )
 }

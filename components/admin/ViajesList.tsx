@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { BadgeEstado } from '@/components/ui/Badge'
 import { formatFechaHora, ETIQUETAS_MATERIAL, isoFecha } from '@/lib/utils'
 import { formatMoneda } from '@/lib/calc-importe'
-import { Download, Search, Filter } from 'lucide-react'
+import { Download, Search, Filter, Trash2, CheckCircle, XCircle } from 'lucide-react'
 import type { Viaje, EstadoViaje } from '@/lib/supabase/types'
 import Image from 'next/image'
 
@@ -16,12 +16,18 @@ const ESTADOS: { value: string; label: string }[] = [
   { value: 'rechazado', label: 'Rechazado' },
 ]
 
+interface Toast {
+  tipo: 'exito' | 'error'
+  mensaje: string
+}
+
 interface Props {
   obrasOpciones: { id: string; nombre: string }[]
   contratistasOpciones: { id: string; nombre: string }[]
+  esAdmin?: boolean
 }
 
-export function ViajesAdmin({ obrasOpciones, contratistasOpciones }: Props) {
+export function ViajesAdmin({ obrasOpciones, contratistasOpciones, esAdmin = false }: Props) {
   const [viajes, setViajes] = useState<Viaje[]>([])
   const [loading, setLoading] = useState(false)
   const [cargado, setCargado] = useState(false)
@@ -34,8 +40,20 @@ export function ViajesAdmin({ obrasOpciones, contratistasOpciones }: Props) {
   const [estado, setEstado] = useState('')
   const [material, setMaterial] = useState('')
 
-  // Viaje seleccionado para foto
+  // Foto modal
   const [viajeDetalle, setViajeDetalle] = useState<Viaje | null>(null)
+
+  // Eliminar
+  const [viajeAEliminar, setViajeAEliminar] = useState<Viaje | null>(null)
+  const [eliminando, setEliminando] = useState(false)
+
+  // Toast
+  const [toast, setToast] = useState<Toast | null>(null)
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(null), 3500)
+    return () => clearTimeout(t)
+  }, [toast])
 
   const buscar = useCallback(async () => {
     setLoading(true)
@@ -57,6 +75,21 @@ export function ViajesAdmin({ obrasOpciones, contratistasOpciones }: Props) {
     setLoading(false)
     setCargado(true)
   }, [fechaDesde, fechaHasta, obraId, contratistaId, estado, material])
+
+  async function confirmarEliminar() {
+    if (!viajeAEliminar) return
+    setEliminando(true)
+    const supabase = createClient()
+    const { error } = await supabase.from('viajes').delete().eq('id', viajeAEliminar.id)
+    setEliminando(false)
+    setViajeAEliminar(null)
+    if (error) {
+      setToast({ tipo: 'error', mensaje: 'No se pudo eliminar el viaje.' })
+    } else {
+      setViajes(prev => prev.filter(v => v.id !== viajeAEliminar.id))
+      setToast({ tipo: 'exito', mensaje: 'Viaje eliminado correctamente.' })
+    }
+  }
 
   async function exportarExcel() {
     const XLSX = await import('xlsx')
@@ -171,6 +204,7 @@ export function ViajesAdmin({ obrasOpciones, contratistasOpciones }: Props) {
                 <th className="text-left pb-3">Estado</th>
                 <th className="text-left pb-3">Notas</th>
                 <th className="pb-3">Foto</th>
+                {esAdmin && <th className="pb-3"></th>}
               </tr>
             </thead>
             <tbody>
@@ -194,6 +228,17 @@ export function ViajesAdmin({ obrasOpciones, contratistasOpciones }: Props) {
                       <button onClick={() => setViajeDetalle(v)} className="text-blue-500 text-xs underline">Ver</button>
                     )}
                   </td>
+                  {esAdmin && (
+                    <td className="py-2 text-center">
+                      <button
+                        onClick={() => setViajeAEliminar(v)}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        title="Eliminar viaje"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -219,6 +264,60 @@ export function ViajesAdmin({ obrasOpciones, contratistasOpciones }: Props) {
             )}
             <button onClick={() => setViajeDetalle(null)} className="w-full text-center text-sm text-gray-400 py-1">Cerrar</button>
           </div>
+        </div>
+      )}
+
+      {/* Modal confirmar eliminación */}
+      {viajeAEliminar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => !eliminando && setViajeAEliminar(null)}>
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-red-100 rounded-xl flex-shrink-0">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">¿Eliminar este viaje?</h3>
+                <p className="text-sm text-gray-500 mt-0.5">Esta acción no se puede deshacer.</p>
+              </div>
+            </div>
+            <div className="bg-gray-50 rounded-xl px-3 py-2 text-sm text-gray-700 space-y-0.5">
+              <div className="font-medium">{(viajeAEliminar.contratistas as { nombre?: string } | null)?.nombre ?? '-'}</div>
+              <div className="text-gray-500">
+                {viajeAEliminar.m3}m³ {ETIQUETAS_MATERIAL[viajeAEliminar.tipo_material]} — {new Date(viajeAEliminar.created_at).toLocaleString('es-MX', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}
+              </div>
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button
+                className="btn-secondary flex-1 py-2.5"
+                onClick={() => setViajeAEliminar(null)}
+                disabled={eliminando}
+              >
+                Cancelar
+              </button>
+              <button
+                className="flex-1 py-2.5 rounded-xl bg-red-600 text-white font-semibold text-sm hover:bg-red-700 transition-colors disabled:opacity-50"
+                onClick={confirmarEliminar}
+                disabled={eliminando}
+              >
+                {eliminando ? 'Eliminando...' : 'Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast notificación */}
+      {toast && (
+        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-lg text-sm font-medium transition-all ${
+          toast.tipo === 'exito'
+            ? 'bg-green-600 text-white'
+            : 'bg-red-600 text-white'
+        }`}>
+          {toast.tipo === 'exito'
+            ? <CheckCircle className="w-4 h-4 flex-shrink-0" />
+            : <XCircle className="w-4 h-4 flex-shrink-0" />
+          }
+          {toast.mensaje}
         </div>
       )}
     </div>
