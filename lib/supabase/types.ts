@@ -143,7 +143,15 @@ export interface Database {
       viajes: {
         Row: ViajeSinJoins
         Insert: Omit<ViajeSinJoins, 'id' | 'created_at'>
-        Update: Partial<Pick<ViajeSinJoins, 'estado' | 'residente_id' | 'residente_timestamp' | 'motivo_rechazo'>>
+        Update: Partial<Pick<ViajeSinJoins,
+          // Campos que puede actualizar un residente
+          | 'estado' | 'residente_id' | 'residente_timestamp' | 'motivo_rechazo'
+          // Campos adicionales que puede editar un admin
+          | 'contratista_id' | 'unidad_id'
+          | 'obra_origen_id' | 'obra_destino_id' | 'obra_cobro_id'
+          | 'zona_destino' | 'tipo_material' | 'm3' | 'distancia_km'
+          | 'importe_calculado' | 'notas'
+        >>
         Relationships: []
       }
     }

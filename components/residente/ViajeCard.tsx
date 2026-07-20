@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { CheckCircle, XCircle, MapPin, Clock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Viaje } from '@/lib/supabase/types'
-import { formatHora, ETIQUETAS_MATERIAL } from '@/lib/utils'
+import { formatHora, formatFechaHora, isoFecha, ETIQUETAS_MATERIAL } from '@/lib/utils'
 import { formatMoneda } from '@/lib/calc-importe'
 
 interface ViajeCardProps {
@@ -18,6 +18,7 @@ export function ViajeCard({ viaje, onActualizado }: ViajeCardProps) {
   const [rechazando, setRechazando] = useState(false)
   const [motivo, setMotivo] = useState('')
 
+  const esHoy = isoFecha(new Date(viaje.created_at)) === isoFecha(new Date())
   const contratista = (viaje.contratistas as { nombre: string } | null)?.nombre ?? '-'
   const unidad = (viaje.unidades as { identificador: string } | null)?.identificador ?? '-'
   const origen = (viaje.obras_origen as { nombre: string } | null)?.nombre ?? '-'
@@ -78,7 +79,7 @@ export function ViajeCard({ viaje, onActualizado }: ViajeCardProps) {
         <div className="text-right">
           <div className="text-sm font-medium text-gray-500 flex items-center gap-1 justify-end">
             <Clock className="w-3.5 h-3.5" />
-            {formatHora(viaje.created_at)}
+            {esHoy ? formatHora(viaje.created_at) : formatFechaHora(viaje.created_at)}
           </div>
         </div>
       </div>

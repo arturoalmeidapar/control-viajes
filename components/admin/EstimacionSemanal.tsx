@@ -35,20 +35,31 @@ export function EstimacionSemanal({ obrasFiltro }: { obrasFiltro?: string[] }) {
   async function buscar() {
     setLoading(true)
     const supabase = createClient()
-    let q = supabase
-      .from('viajes')
-      .select('m3, importe_calculado, tipo_material, contratistas(nombre), obra_cobro:obras!viajes_obra_cobro_id_fkey(nombre)')
-      .eq('estado', 'confirmado')
-      .gte('created_at', `${fechaDesde}T00:00:00`)
-      .lte('created_at', `${fechaHasta}T23:59:59`)
-      .order('created_at')
 
-    if (obrasFiltro && obrasFiltro.length > 0) {
-      q = q.in('obra_cobro_id', obrasFiltro)
+    // Paginar de 1000 en 1000 para superar el límite por defecto de Supabase
+    const viajes: ViajeEstimacion[] = []
+    const BATCH = 1000
+    let from = 0
+    while (true) {
+      let q = supabase
+        .from('viajes')
+        .select('m3, importe_calculado, tipo_material, contratistas(nombre), obra_cobro:obras!viajes_obra_cobro_id_fkey(nombre)')
+        .eq('estado', 'confirmado')
+        .gte('created_at', `${fechaDesde}T00:00:00`)
+        .lte('created_at', `${fechaHasta}T23:59:59`)
+        .order('created_at')
+        .range(from, from + BATCH - 1)
+
+      if (obrasFiltro && obrasFiltro.length > 0) {
+        q = q.in('obra_cobro_id', obrasFiltro)
+      }
+
+      const { data } = await q
+      const batch = (data ?? []) as unknown as ViajeEstimacion[]
+      viajes.push(...batch)
+      if (batch.length < BATCH) break
+      from += BATCH
     }
-
-    const { data } = await q
-    const viajes = (data ?? []) as unknown as ViajeEstimacion[]
 
     // Agrupar por contratista + obra cobro + material
     const mapa: Record<string, FilaResumen> = {}

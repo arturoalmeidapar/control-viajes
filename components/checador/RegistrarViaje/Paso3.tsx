@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Camera, MapPin, AlertCircle } from 'lucide-react'
+import { Camera, MapPin, AlertCircle, Loader2 } from 'lucide-react'
 import type { Contratista, Unidad, Obra, TipoMaterial } from '@/lib/supabase/types'
 import { ETIQUETAS_MATERIAL } from '@/lib/utils'
 
@@ -157,8 +157,11 @@ export function Paso3({
 
       <div className="flex gap-3">
         <button className="btn-secondary flex-1" onClick={onAtras} disabled={submitting}>Atrás</button>
-        <button className="btn-primary flex-1" onClick={onSubmit} disabled={!foto || submitting}>
-          {submitting ? 'Guardando...' : 'Registrar Viaje'}
+        <button className="btn-primary flex-1 flex items-center justify-center gap-2" onClick={onSubmit} disabled={!foto || submitting}>
+          {submitting
+            ? <><Loader2 className="w-4 h-4 animate-spin" /> Registrando...</>
+            : 'Registrar Viaje'
+          }
         </button>
       </div>
     </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Paso1 } from './Paso1'
 import { Paso2 } from './Paso2'
@@ -80,6 +80,7 @@ export function RegistrarViaje({ contratistas, unidades, obras, distancias, tari
   const [gpsLat, setGpsLat] = useState<number | null>(null)
   const [gpsLng, setGpsLng] = useState<number | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const submittingRef = useRef(false)
 
   const contratista = contratistas.find(c => c.id === contratistaId)
   const unidad = unidades.find(u => u.id === unidadId)
@@ -124,10 +125,12 @@ export function RegistrarViaje({ contratistas, unidades, obras, distancias, tari
   }
 
   async function handleSubmit() {
+    if (submittingRef.current) return
     if (!foto || !tipoMaterial || !m3) return
     const noNecesitaDistancia = tipoMaterial === 'agua' || tipoMaterial === 'basura'
     if (!noNecesitaDistancia && distanciaKm === '') return
 
+    submittingRef.current = true
     setSubmitting(true)
 
     const fotoTimestamp = new Date().toISOString()
@@ -139,6 +142,26 @@ export function RegistrarViaje({ contratistas, unidades, obras, distancias, tari
 
     try {
       const supabase = createClient()
+
+      // Protección contra duplicados: verificar viaje idéntico en los últimos 30 segundos
+      const cutoff = new Date(Date.now() - 30_000).toISOString()
+      const { data: dup } = await supabase
+        .from('viajes')
+        .select('id')
+        .eq('checador_id', checadorId)
+        .eq('contratista_id', contratistaId)
+        .eq('unidad_id', unidadId)
+        .eq('obra_origen_id', obraOrigenId)
+        .eq('tipo_material', tipoMaterial)
+        .eq('m3', Number(m3))
+        .gte('created_at', cutoff)
+        .limit(1)
+        .maybeSingle()
+
+      if (dup) {
+        alert('Este viaje ya fue registrado hace unos segundos.')
+        return
+      }
 
       const ext = foto.name.split('.').pop() ?? 'jpg'
       const nombreFoto = `${checadorId}/${Date.now()}.${ext}`
@@ -210,6 +233,7 @@ export function RegistrarViaje({ contratistas, unidades, obras, distancias, tari
       alert('Sin conexión — el viaje se guardó localmente y se sincronizará al recuperar internet.')
       router.push('/checador')
     } finally {
+      submittingRef.current = false
       setSubmitting(false)
     }
   }

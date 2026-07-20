@@ -5,8 +5,9 @@ import { createClient } from '@/lib/supabase/client'
 import { BadgeEstado } from '@/components/ui/Badge'
 import { formatFechaHora, ETIQUETAS_MATERIAL, isoFecha } from '@/lib/utils'
 import { formatMoneda } from '@/lib/calc-importe'
-import { Download, Search, Filter, Trash2, CheckCircle, XCircle } from 'lucide-react'
-import type { Viaje, EstadoViaje } from '@/lib/supabase/types'
+import { Download, Search, Filter, Trash2, Pencil, CheckCircle, XCircle, MoreHorizontal } from 'lucide-react'
+import { EditarViajeModal } from './EditarViajeModal'
+import type { Viaje, EstadoViaje, Obra, Contratista, Unidad, Distancia, Tarifa } from '@/lib/supabase/types'
 import Image from 'next/image'
 
 const ESTADOS: { value: string; label: string }[] = [
@@ -22,12 +23,16 @@ interface Toast {
 }
 
 interface Props {
-  obrasOpciones: { id: string; nombre: string }[]
-  contratistasOpciones: { id: string; nombre: string }[]
+  obras: Obra[]
+  contratistas: Contratista[]
+  unidades: Unidad[]
+  distancias: Distancia[]
+  tarifas: Tarifa[]
+  adminId?: string
   esAdmin?: boolean
 }
 
-export function ViajesAdmin({ obrasOpciones, contratistasOpciones, esAdmin = false }: Props) {
+export function ViajesAdmin({ obras, contratistas, unidades, distancias, tarifas, adminId, esAdmin = false }: Props) {
   const [viajes, setViajes] = useState<Viaje[]>([])
   const [loading, setLoading] = useState(false)
   const [cargado, setCargado] = useState(false)
@@ -47,11 +52,28 @@ export function ViajesAdmin({ obrasOpciones, contratistasOpciones, esAdmin = fal
   const [viajeAEliminar, setViajeAEliminar] = useState<Viaje | null>(null)
   const [eliminando, setEliminando] = useState(false)
 
+  // Editar
+  const [viajeAEditar, setViajeAEditar] = useState<Viaje | null>(null)
+
+  // Confirmar / Rechazar
+  const [viajeARechazar, setViajeARechazar] = useState<Viaje | null>(null)
+  const [motivoRechazo, setMotivoRechazo] = useState('')
+  const [procesando, setProcesando] = useState(false)
+
+  // Menú móvil
+  const [menuAbiertoId, setMenuAbiertoId] = useState<string | null>(null)
+  useEffect(() => {
+    if (!menuAbiertoId) return
+    function cerrar() { setMenuAbiertoId(null) }
+    document.addEventListener('click', cerrar)
+    return () => document.removeEventListener('click', cerrar)
+  }, [menuAbiertoId])
+
   // Toast
   const [toast, setToast] = useState<Toast | null>(null)
   useEffect(() => {
     if (!toast) return
-    const t = setTimeout(() => setToast(null), 3500)
+    const t = setTimeout(() => setToast(null), 4000)
     return () => clearTimeout(t)
   }, [toast])
 
@@ -80,15 +102,80 @@ export function ViajesAdmin({ obrasOpciones, contratistasOpciones, esAdmin = fal
     if (!viajeAEliminar) return
     setEliminando(true)
     const supabase = createClient()
-    const { error } = await supabase.from('viajes').delete().eq('id', viajeAEliminar.id)
+    const { error, count } = await supabase
+      .from('viajes')
+      .delete({ count: 'exact' })
+      .eq('id', viajeAEliminar.id)
     setEliminando(false)
     setViajeAEliminar(null)
-    if (error) {
-      setToast({ tipo: 'error', mensaje: 'No se pudo eliminar el viaje.' })
+    if (error || count === 0) {
+      setToast({ tipo: 'error', mensaje: 'No se pudo eliminar el viaje. Verifica que el SQL de permisos esté aplicado en Supabase.' })
     } else {
       setViajes(prev => prev.filter(v => v.id !== viajeAEliminar.id))
       setToast({ tipo: 'exito', mensaje: 'Viaje eliminado correctamente.' })
     }
+  }
+
+  async function ejecutarConfirmar(viaje: Viaje) {
+    setProcesando(true)
+    const supabase = createClient()
+    const { error, count } = await supabase
+      .from('viajes')
+      .update({
+        estado: 'confirmado',
+        residente_id: adminId ?? null,
+        residente_timestamp: new Date().toISOString(),
+        motivo_rechazo: null,
+      }, { count: 'exact' })
+      .eq('id', viaje.id)
+    setProcesando(false)
+    if (error || count === 0) {
+      setToast({ tipo: 'error', mensaje: 'No se pudo confirmar el viaje. Verifica los permisos RLS en Supabase.' })
+    } else {
+      setViajes(prev => prev.map(v => v.id === viaje.id
+        ? { ...v, estado: 'confirmado' as EstadoViaje, residente_id: adminId ?? null, motivo_rechazo: null }
+        : v
+      ))
+      setToast({ tipo: 'exito', mensaje: 'Viaje confirmado.' })
+    }
+  }
+
+  async function ejecutarRechazar() {
+    if (!viajeARechazar || motivoRechazo.trim().length < 10) return
+    setProcesando(true)
+    const supabase = createClient()
+    const motivo = motivoRechazo.trim()
+    const id = viajeARechazar.id
+    const { error, count } = await supabase
+      .from('viajes')
+      .update({
+        estado: 'rechazado',
+        residente_id: adminId ?? null,
+        residente_timestamp: new Date().toISOString(),
+        motivo_rechazo: motivo,
+      }, { count: 'exact' })
+      .eq('id', id)
+    setProcesando(false)
+    if (error || count === 0) {
+      setToast({ tipo: 'error', mensaje: 'No se pudo rechazar el viaje. Verifica los permisos RLS en Supabase.' })
+      return
+    }
+    setViajes(prev => prev.map(v => v.id === id
+      ? { ...v, estado: 'rechazado' as EstadoViaje, residente_id: adminId ?? null, motivo_rechazo: motivo }
+      : v
+    ))
+    setViajeARechazar(null)
+    setMotivoRechazo('')
+    setToast({ tipo: 'exito', mensaje: 'Viaje rechazado.' })
+  }
+
+  function handleViajeEditado(viajeActualizado: Viaje, cambios: string[]) {
+    setViajes(prev => prev.map(v => v.id === viajeActualizado.id ? viajeActualizado : v))
+    setViajeAEditar(null)
+    const msg = cambios.length > 0
+      ? `Viaje actualizado — ${cambios.join(', ')}`
+      : 'Viaje guardado sin cambios.'
+    setToast({ tipo: 'exito', mensaje: msg })
   }
 
   async function exportarExcel() {
@@ -99,7 +186,7 @@ export function ViajesAdmin({ obrasOpciones, contratistasOpciones, esAdmin = fal
       'Contratista': (v.contratistas as { nombre?: string } | null)?.nombre ?? '',
       'Unidad': (v.unidades as { identificador?: string } | null)?.identificador ?? '',
       'Origen': (v.obras_origen as { nombre?: string } | null)?.nombre ?? '',
-      'Destino': v.tipo_material === 'desmonte' ? 'Trinchera' :
+      'Destino': v.tipo_material === 'desmonte' ? `${(v.obras_origen as { nombre?: string } | null)?.nombre ?? '-'} → Trinchera` :
                  v.tipo_material === 'basura' ? 'Basurero municipal' :
                  (v.obras_destino as { nombre?: string } | null)?.nombre ?? '',
       'Zona': v.zona_destino ?? '',
@@ -156,14 +243,14 @@ export function ViajesAdmin({ obrasOpciones, contratistasOpciones, esAdmin = fal
             <label className="label text-xs">Obra cobro</label>
             <select className="input text-sm py-2" value={obraId} onChange={e => setObraId(e.target.value)}>
               <option value="">Todas</option>
-              {obrasOpciones.map(o => <option key={o.id} value={o.id}>{o.nombre}</option>)}
+              {obras.map(o => <option key={o.id} value={o.id}>{o.nombre}</option>)}
             </select>
           </div>
           <div>
             <label className="label text-xs">Contratista</label>
             <select className="input text-sm py-2" value={contratistaId} onChange={e => setContratistaId(e.target.value)}>
               <option value="">Todos</option>
-              {contratistasOpciones.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              {contratistas.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
             </select>
           </div>
           <div>
@@ -213,8 +300,8 @@ export function ViajesAdmin({ obrasOpciones, contratistasOpciones, esAdmin = fal
                   <td className="py-2 text-gray-500 whitespace-nowrap">{new Date(v.created_at).toLocaleString('es-MX', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}</td>
                   <td className="py-2">{(v.contratistas as { nombre?: string } | null)?.nombre}</td>
                   <td className="py-2 text-gray-600">{(v.unidades as { identificador?: string } | null)?.identificador}</td>
-                  <td className="py-2 text-xs max-w-[100px] truncate">
-                    {v.tipo_material === 'desmonte' ? 'Trinchera' :
+                  <td className="py-2 text-xs max-w-[140px] truncate" title={v.tipo_material === 'desmonte' ? `${(v.obras_origen as { nombre?: string } | null)?.nombre ?? '-'} → Trinchera` : undefined}>
+                    {v.tipo_material === 'desmonte' ? `${(v.obras_origen as { nombre?: string } | null)?.nombre ?? '-'} → Trinchera` :
                      v.tipo_material === 'basura' ? 'Basurero municipal' :
                      (v.obras_destino as { nombre?: string } | null)?.nombre ?? '-'}
                   </td>
@@ -230,13 +317,94 @@ export function ViajesAdmin({ obrasOpciones, contratistasOpciones, esAdmin = fal
                   </td>
                   {esAdmin && (
                     <td className="py-2 text-center">
-                      <button
-                        onClick={() => setViajeAEliminar(v)}
-                        className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                        title="Eliminar viaje"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {/* Desktop: botones icono en cuadrícula */}
+                      <div className="hidden md:grid grid-cols-2 gap-0.5 w-fit mx-auto">
+                        {(v.estado === 'pendiente' || v.estado === 'rechazado') ? (
+                          <button
+                            onClick={() => ejecutarConfirmar(v)}
+                            disabled={procesando}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors disabled:opacity-40"
+                            title="Confirmar viaje"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                          </button>
+                        ) : <span />}
+                        {(v.estado === 'pendiente' || v.estado === 'confirmado') ? (
+                          <button
+                            onClick={() => { setViajeARechazar(v); setMotivoRechazo('') }}
+                            disabled={procesando}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40"
+                            title="Rechazar viaje"
+                          >
+                            <XCircle className="w-4 h-4" />
+                          </button>
+                        ) : <span />}
+                        <button
+                          onClick={() => setViajeAEditar(v)}
+                          disabled={procesando}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-40"
+                          title="Editar viaje"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setViajeAEliminar(v)}
+                          disabled={procesando}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40"
+                          title="Eliminar viaje"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      {/* Móvil: menú tres puntos */}
+                      <div className="md:hidden relative">
+                        <button
+                          onClick={e => { e.stopPropagation(); setMenuAbiertoId(menuAbiertoId === v.id ? null : v.id) }}
+                          disabled={procesando}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-40"
+                        >
+                          <MoreHorizontal className="w-4 h-4" />
+                        </button>
+                        {menuAbiertoId === v.id && (
+                          <div
+                            className="absolute right-0 top-8 z-30 bg-white rounded-xl shadow-lg border border-gray-100 py-1 min-w-[150px]"
+                            onClick={e => e.stopPropagation()}
+                          >
+                            {(v.estado === 'pendiente' || v.estado === 'rechazado') && (
+                              <button
+                                onClick={() => { ejecutarConfirmar(v); setMenuAbiertoId(null) }}
+                                disabled={procesando}
+                                className="w-full text-left px-4 py-2.5 text-sm text-green-700 hover:bg-green-50 flex items-center gap-2 disabled:opacity-40"
+                              >
+                                <CheckCircle className="w-4 h-4" /> Confirmar
+                              </button>
+                            )}
+                            {(v.estado === 'pendiente' || v.estado === 'confirmado') && (
+                              <button
+                                onClick={() => { setViajeARechazar(v); setMotivoRechazo(''); setMenuAbiertoId(null) }}
+                                disabled={procesando}
+                                className="w-full text-left px-4 py-2.5 text-sm text-red-700 hover:bg-red-50 flex items-center gap-2 disabled:opacity-40"
+                              >
+                                <XCircle className="w-4 h-4" /> Rechazar
+                              </button>
+                            )}
+                            <button
+                              onClick={() => { setViajeAEditar(v); setMenuAbiertoId(null) }}
+                              disabled={procesando}
+                              className="w-full text-left px-4 py-2.5 text-sm text-blue-700 hover:bg-blue-50 flex items-center gap-2 disabled:opacity-40"
+                            >
+                              <Pencil className="w-4 h-4" /> Editar
+                            </button>
+                            <button
+                              onClick={() => { setViajeAEliminar(v); setMenuAbiertoId(null) }}
+                              disabled={procesando}
+                              className="w-full text-left px-4 py-2.5 text-sm text-red-700 hover:bg-red-50 flex items-center gap-2 disabled:opacity-40"
+                            >
+                              <Trash2 className="w-4 h-4" /> Eliminar
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </td>
                   )}
                 </tr>
@@ -263,6 +431,74 @@ export function ViajesAdmin({ obrasOpciones, contratistasOpciones, esAdmin = fal
               </a>
             )}
             <button onClick={() => setViajeDetalle(null)} className="w-full text-center text-sm text-gray-400 py-1">Cerrar</button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal editar viaje */}
+      {viajeAEditar && (
+        <EditarViajeModal
+          viaje={viajeAEditar}
+          contratistas={contratistas}
+          unidades={unidades}
+          obras={obras}
+          distancias={distancias}
+          tarifas={tarifas}
+          onClose={() => setViajeAEditar(null)}
+          onGuardado={handleViajeEditado}
+        />
+      )}
+
+      {/* Modal rechazar viaje */}
+      {viajeARechazar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => !procesando && (setViajeARechazar(null), setMotivoRechazo(''))}>
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-red-100 rounded-xl flex-shrink-0">
+                <XCircle className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Rechazar viaje</h3>
+                <p className="text-sm text-gray-500 mt-0.5">El motivo es obligatorio.</p>
+              </div>
+            </div>
+            <div className="bg-gray-50 rounded-xl px-3 py-2 text-sm text-gray-700 space-y-0.5">
+              <div className="font-medium">{(viajeARechazar.contratistas as { nombre?: string } | null)?.nombre ?? '-'}</div>
+              <div className="text-gray-500">
+                {viajeARechazar.m3}m³ {ETIQUETAS_MATERIAL[viajeARechazar.tipo_material]} — {new Date(viajeARechazar.created_at).toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+              </div>
+            </div>
+            <div>
+              <label className="label">Motivo del rechazo <span className="text-red-500">*</span></label>
+              <textarea
+                className="input"
+                rows={3}
+                placeholder="Describe el motivo (mínimo 10 caracteres)..."
+                value={motivoRechazo}
+                onChange={e => setMotivoRechazo(e.target.value)}
+                disabled={procesando}
+                autoFocus
+              />
+              {motivoRechazo.length > 0 && motivoRechazo.trim().length < 10 && (
+                <p className="text-xs text-red-500 mt-1">{motivoRechazo.trim().length}/10 caracteres mínimos</p>
+              )}
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button
+                className="btn-secondary flex-1 py-2.5"
+                onClick={() => { setViajeARechazar(null); setMotivoRechazo('') }}
+                disabled={procesando}
+              >
+                Cancelar
+              </button>
+              <button
+                className="flex-1 py-2.5 rounded-xl bg-red-600 text-white font-semibold text-sm hover:bg-red-700 transition-colors disabled:opacity-50"
+                onClick={ejecutarRechazar}
+                disabled={motivoRechazo.trim().length < 10 || procesando}
+              >
+                {procesando ? 'Rechazando...' : 'Rechazar'}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -308,7 +544,7 @@ export function ViajesAdmin({ obrasOpciones, contratistasOpciones, esAdmin = fal
 
       {/* Toast notificación */}
       {toast && (
-        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-lg text-sm font-medium transition-all ${
+        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-lg text-sm font-medium transition-all max-w-sm text-center ${
           toast.tipo === 'exito'
             ? 'bg-green-600 text-white'
             : 'bg-red-600 text-white'
