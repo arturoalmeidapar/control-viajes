@@ -1,10 +1,14 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Truck, Package, DollarSign, Clock } from 'lucide-react'
 import { formatMoneda } from '@/lib/calc-importe'
-import { ETIQUETAS_MATERIAL } from '@/lib/utils'
+import { ETIQUETAS_MATERIAL, inicioSemanaMX, inicioMesMX } from '@/lib/utils'
+import { TarjetaMetrica } from './TarjetaMetrica'
+import { ResumenPeriodo } from './ResumenPeriodo'
+
+type Tab = 'hoy' | 'semana' | 'mes'
 
 interface ViajeResumen {
   id: string
@@ -19,6 +23,15 @@ interface ViajeResumen {
 
 export function DashboardAdmin({ viajes: inicial }: { viajes: ViajeResumen[] }) {
   const [viajes, setViajes] = useState<ViajeResumen[]>(inicial)
+  const [tab, setTab] = useState<Tab>('hoy')
+  const [visitados, setVisitados] = useState<Set<Tab>>(() => new Set<Tab>(['hoy']))
+  const inicioSemana = useMemo(() => inicioSemanaMX(), [])
+  const inicioMes = useMemo(() => inicioMesMX(), [])
+
+  function irA(t: Tab) {
+    setTab(t)
+    setVisitados(prev => (prev.has(t) ? prev : new Set(prev).add(t)))
+  }
 
   useEffect(() => {
     const supabase = createClient()
@@ -68,6 +81,57 @@ export function DashboardAdmin({ viajes: inicial }: { viajes: ViajeResumen[] }) 
     porObra[nombre].importe += v.importe_calculado
   }
 
+  return (
+    <div className="space-y-6">
+      {/* Selector de pestañas */}
+      <div className="flex gap-1 border-b border-gray-200">
+        {([
+          ['hoy', 'Hoy'],
+          ['semana', 'Esta semana'],
+          ['mes', 'Este mes'],
+        ] as [Tab, string][]).map(([valor, etiqueta]) => (
+          <button
+            key={valor}
+            onClick={() => irA(valor)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              tab === valor
+                ? 'border-naranja-500 text-naranja-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {etiqueta}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: tab === 'hoy' ? 'block' : 'none' }}>
+        <PanelHoy viajes={viajes} pendientes={pendientes} rechazados={rechazados} m3Total={m3Total} importeTotal={importeTotal} porContratista={porContratista} porObra={porObra} />
+      </div>
+
+      {visitados.has('semana') && (
+        <div style={{ display: tab === 'semana' ? 'block' : 'none' }}>
+          <ResumenPeriodo desde={inicioSemana} titulo="Esta semana" mostrarLista />
+        </div>
+      )}
+
+      {visitados.has('mes') && (
+        <div style={{ display: tab === 'mes' ? 'block' : 'none' }}>
+          <ResumenPeriodo desde={inicioMes} titulo="Este mes" />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PanelHoy({ viajes, pendientes, rechazados, m3Total, importeTotal, porContratista, porObra }: {
+  viajes: ViajeResumen[]
+  pendientes: number
+  rechazados: number
+  m3Total: number
+  importeTotal: number
+  porContratista: Record<string, { nombre: string; viajes: number; m3: number; importe: number }>
+  porObra: Record<string, { nombre: string; viajes: number; m3: number; importe: number }>
+}) {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Dashboard — Hoy</h1>
@@ -180,24 +244,6 @@ export function DashboardAdmin({ viajes: inicial }: { viajes: ViajeResumen[] }) 
             </tbody>
           </table>
         </div>
-      </div>
-    </div>
-  )
-}
-
-function TarjetaMetrica({ icono, color, label, valor }: { icono: React.ReactNode; color: string; label: string; valor: string }) {
-  const colores: Record<string, string> = {
-    blue: 'text-blue-500 bg-blue-50',
-    yellow: 'text-yellow-500 bg-yellow-50',
-    green: 'text-green-500 bg-green-50',
-    naranja: 'text-naranja-500 bg-naranja-50',
-  }
-  return (
-    <div className="card flex items-center gap-3">
-      <div className={`p-2.5 rounded-xl ${colores[color]}`}>{icono}</div>
-      <div>
-        <div className="text-xs text-gray-500">{label}</div>
-        <div className="text-lg font-bold text-gray-900">{valor}</div>
       </div>
     </div>
   )
