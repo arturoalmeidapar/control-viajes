@@ -5,6 +5,8 @@ export function TarjetaMetrica({ icono, color, label, valor }: { icono: React.Re
     green: 'text-green-500 bg-green-50',
     naranja: 'text-naranja-500 bg-naranja-50',
     red: 'text-red-500 bg-red-50',
+    cyan: 'text-cyan-500 bg-cyan-50',
+    purple: 'text-purple-500 bg-purple-50',
   }
   return (
     <div className="card flex items-center gap-3">

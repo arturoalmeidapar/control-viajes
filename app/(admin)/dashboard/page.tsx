@@ -15,7 +15,7 @@ export default async function DashboardPage() {
 
   const { data: viajes } = await supabase
     .from('viajes')
-    .select('id, estado, m3, importe_calculado, tipo_material, created_at, contratistas(nombre,codigo), obra_cobro:obras!viajes_obra_cobro_id_fkey(nombre)')
+    .select('id, estado, m3, importe_calculado, tipo_material, created_at, contratistas(nombre,codigo), unidades(tipo), obra_cobro:obras!viajes_obra_cobro_id_fkey(nombre)')
     .gte('created_at', inicioHoy)
     .lte('created_at', finHoy)
     .order('created_at', { ascending: false })
