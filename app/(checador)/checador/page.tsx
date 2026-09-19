@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { BadgeEstado } from '@/components/ui/Badge'
 import { SuscribirPush } from '@/components/checador/SuscribirPush'
 import { PlusCircle, Clock, CheckCircle, XCircle } from 'lucide-react'
-import { formatHora } from '@/lib/utils'
+import { formatHora, inicioHoyMX, finHoyMX } from '@/lib/utils'
 import type { EstadoViaje } from '@/lib/supabase/types'
 
 export const revalidate = 0
@@ -27,16 +27,15 @@ export default async function CheckadorPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const hoy = new Date()
-  const inicioHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).toISOString()
-  const finHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 23, 59, 59).toISOString()
+  const inicioHoy = inicioHoyMX().toISOString()
+  const finHoy = finHoyMX().toISOString()
 
   const { data } = await supabase
     .from('viajes')
     .select('id, created_at, estado, tipo_material, m3, motivo_rechazo, contratistas(nombre), unidades(identificador), obras_origen:obras!viajes_obra_origen_id_fkey(nombre), obras_destino:obras!viajes_obra_destino_id_fkey(nombre)')
     .eq('checador_id', user.id)
     .gte('created_at', inicioHoy)
-    .lte('created_at', finHoy)
+    .lt('created_at', finHoy)
     .order('created_at', { ascending: false })
 
   const viajes = (data ?? []) as unknown as ViajeResumen[]

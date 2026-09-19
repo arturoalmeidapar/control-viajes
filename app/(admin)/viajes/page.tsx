@@ -16,6 +16,7 @@ export default async function ViajesPage() {
     { data: distancias },
     { data: tarifas },
     { data: perfil },
+    { data: checadores },
   ] = await Promise.all([
     supabase.from('obras').select('*').eq('activo', true).order('nombre'),
     supabase.from('contratistas').select('*').eq('activo', true).order('nombre'),
@@ -23,6 +24,7 @@ export default async function ViajesPage() {
     supabase.from('distancias').select('*'),
     supabase.from('tarifas').select('*'),
     supabase.from('usuarios').select('rol').eq('id', user.id).single(),
+    supabase.from('usuarios').select('id, nombre').eq('rol', 'checador').order('nombre'),
   ])
 
   return (
@@ -32,6 +34,7 @@ export default async function ViajesPage() {
       unidades={unidades ?? []}
       distancias={distancias ?? []}
       tarifas={tarifas ?? []}
+      checadores={checadores ?? []}
       adminId={user.id}
       esAdmin={perfil?.rol === 'admin'}
     />

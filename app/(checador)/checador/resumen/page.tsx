@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { formatFecha } from '@/lib/utils'
+import { diaOperativoMX, rangoDiaOperativoMX, diaOperativoISO, parseDiaISO, sumarDiasFecha } from '@/lib/utils'
+import { SelectorFechaResumen } from '@/components/checador/SelectorFechaResumen'
+import { History } from 'lucide-react'
 
 export const revalidate = 0
 
@@ -84,14 +86,22 @@ const LABEL_MATERIAL: Record<string, string> = {
   basura: 'Basura',
 }
 
-export default async function ResumenPage() {
+export default async function ResumenPage({ searchParams }: { searchParams: { fecha?: string } }) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const hoy = new Date()
-  const inicioHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).toISOString()
-  const finHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 23, 59, 59).toISOString()
+  const hoyDia = diaOperativoMX()
+  const hoyISO = diaOperativoISO(hoyDia)
+  const fechaParam = searchParams.fecha && /^\d{4}-\d{2}-\d{2}$/.test(searchParams.fecha) ? searchParams.fecha : hoyISO
+  // No permitir navegar a días futuros
+  const fechaISO = fechaParam > hoyISO ? hoyISO : fechaParam
+  const diaSeleccionado = parseDiaISO(fechaISO)
+  const esHoy = fechaISO === hoyISO
+
+  const { inicio, fin } = rangoDiaOperativoMX(diaSeleccionado)
+  const anteriorISO = diaOperativoISO(sumarDiasFecha(diaSeleccionado, -1))
+  const siguienteISO = diaOperativoISO(sumarDiasFecha(diaSeleccionado, 1))
 
   const { data } = await supabase
     .from('viajes')
@@ -103,8 +113,8 @@ export default async function ResumenPage() {
       obra_cobro:obras!viajes_obra_cobro_id_fkey(nombre)
     `)
     .eq('checador_id', user.id)
-    .gte('created_at', inicioHoy)
-    .lte('created_at', finHoy)
+    .gte('created_at', inicio.toISOString())
+    .lt('created_at', fin.toISOString())
     .order('created_at', { ascending: false })
 
   const viajes = (data ?? []) as unknown as ViajeResumen[]
@@ -174,13 +184,34 @@ export default async function ResumenPage() {
     residenteMap
   )
 
+  const fechaMostrada = new Date(Date.UTC(diaSeleccionado.year, diaSeleccionado.month - 1, diaSeleccionado.day))
+  const fechaFormateada = fechaMostrada.toLocaleDateString('es-MX', {
+    day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC',
+  })
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Resumen del día</h1>
-        <p className="text-sm text-gray-500 mt-1">{formatFecha(hoy.toISOString())}</p>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-gray-900">Resumen del día</h1>
+          {!esHoy && (
+            <span className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+              <History className="w-3 h-3" /> Solo lectura
+            </span>
+          )}
+        </div>
+        <p className="text-sm text-gray-500 mt-1">{fechaFormateada}</p>
       </div>
+
+      {/* Selector de fecha / historial */}
+      <SelectorFechaResumen fecha={fechaISO} anterior={anteriorISO} siguiente={siguienteISO} esHoy={esHoy} hoyISO={hoyISO} />
+
+      {!esHoy && (
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 text-sm text-blue-700">
+          Estás viendo un día anterior. Este resumen es de solo lectura — no se pueden registrar viajes en fechas pasadas.
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3">
@@ -204,7 +235,7 @@ export default async function ResumenPage() {
 
       {totalViajes === 0 && (
         <div className="card text-center py-12 text-gray-400">
-          Sin viajes registrados hoy
+          Sin viajes registrados {esHoy ? 'hoy' : 'este día'}
         </div>
       )}
 

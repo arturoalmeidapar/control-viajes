@@ -22,17 +22,23 @@ interface Toast {
   mensaje: string
 }
 
+interface Checador {
+  id: string
+  nombre: string
+}
+
 interface Props {
   obras: Obra[]
   contratistas: Contratista[]
   unidades: Unidad[]
   distancias: Distancia[]
   tarifas: Tarifa[]
+  checadores?: Checador[]
   adminId?: string
   esAdmin?: boolean
 }
 
-export function ViajesAdmin({ obras, contratistas, unidades, distancias, tarifas, adminId, esAdmin = false }: Props) {
+export function ViajesAdmin({ obras, contratistas, unidades, distancias, tarifas, checadores = [], adminId, esAdmin = false }: Props) {
   const [viajes, setViajes] = useState<Viaje[]>([])
   const [loading, setLoading] = useState(false)
   const [cargado, setCargado] = useState(false)
@@ -42,6 +48,7 @@ export function ViajesAdmin({ obras, contratistas, unidades, distancias, tarifas
   const [fechaHasta, setFechaHasta] = useState(isoFecha(new Date()))
   const [obraId, setObraId] = useState('')
   const [contratistaId, setContratistaId] = useState('')
+  const [checadorId, setCheadorId] = useState('')
   const [estado, setEstado] = useState('')
   const [material, setMaterial] = useState('')
 
@@ -89,6 +96,7 @@ export function ViajesAdmin({ obras, contratistas, unidades, distancias, tarifas
 
     if (obraId) q = q.eq('obra_cobro_id', obraId)
     if (contratistaId) q = q.eq('contratista_id', contratistaId)
+    if (checadorId) q = q.eq('checador_id', checadorId)
     if (estado) q = q.eq('estado', estado)
     if (material) q = q.eq('tipo_material', material)
 
@@ -96,7 +104,7 @@ export function ViajesAdmin({ obras, contratistas, unidades, distancias, tarifas
     setViajes((data ?? []) as Viaje[])
     setLoading(false)
     setCargado(true)
-  }, [fechaDesde, fechaHasta, obraId, contratistaId, estado, material])
+  }, [fechaDesde, fechaHasta, obraId, contratistaId, checadorId, estado, material])
 
   async function confirmarEliminar() {
     if (!viajeAEliminar) return
@@ -260,6 +268,15 @@ export function ViajesAdmin({ obras, contratistas, unidades, distancias, tarifas
               {Object.entries(ETIQUETAS_MATERIAL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>
+          {checadores.length > 0 && (
+            <div>
+              <label className="label text-xs">Checador</label>
+              <select className="input text-sm py-2" value={checadorId} onChange={e => setCheadorId(e.target.value)}>
+                <option value="">Todos</option>
+                {checadores.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              </select>
+            </div>
+          )}
         </div>
         <button className="btn-primary py-2 text-sm" onClick={buscar} disabled={loading}>
           <Search className="w-4 h-4" /> {loading ? 'Buscando...' : 'Buscar'}

@@ -10,6 +10,7 @@ export interface ViajeResumen {
   importe_calculado: number
   tipo_material: string
   created_at: string
+  checador_id?: string
   contratistas: { nombre: string; codigo: string } | null
   unidades: { tipo: string } | null
   obra_cobro: { nombre: string } | null
