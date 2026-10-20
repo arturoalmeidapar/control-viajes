@@ -94,5 +94,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|icons|manifest.json|sw.js).*)'],
+  // api/cron queda fuera: Vercel lo invoca sin sesión de usuario; se protege con
+  // CRON_SECRET dentro de la propia ruta (ver app/api/cron/limpiar-fotos/route.ts).
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|icons|manifest.json|sw.js|api/cron).*)'],
 }

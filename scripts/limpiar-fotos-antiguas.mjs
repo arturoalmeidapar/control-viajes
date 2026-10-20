@@ -1,13 +1,15 @@
 // Limpieza de fotos antiguas del bucket "fotos-viajes".
 //
-// Borra los archivos de storage de los viajes anteriores a una fecha de corte
-// y deja foto_url en NULL. Los registros de viajes NO se tocan en nada más.
+// Borra los archivos de storage de los viajes dentro de un rango de fechas
+// (o anteriores a una fecha de corte) y deja foto_url en NULL. Los registros
+// de viajes NO se tocan en nada más.
 //
 // Uso:
-//   node scripts/limpiar-fotos-antiguas.mjs              # muestra el conteo y pide confirmación
-//   node scripts/limpiar-fotos-antiguas.mjs --dry        # solo muestra el conteo, no borra nada
-//   node scripts/limpiar-fotos-antiguas.mjs --si         # ejecuta sin preguntar
-//   node scripts/limpiar-fotos-antiguas.mjs --fecha=2026-07-01
+//   node scripts/limpiar-fotos-antiguas.mjs                          # modo corte, muestra el conteo y pide confirmación
+//   node scripts/limpiar-fotos-antiguas.mjs --dry                    # solo muestra el conteo, no borra nada
+//   node scripts/limpiar-fotos-antiguas.mjs --si                     # ejecuta sin preguntar
+//   node scripts/limpiar-fotos-antiguas.mjs --fecha=2026-07-01       # modo corte: todo lo anterior a esa fecha
+//   node scripts/limpiar-fotos-antiguas.mjs --desde=2026-07-01 --hasta=2026-08-31   # modo rango (ambas fechas inclusive)
 //
 // Requisito previo: aplicar supabase/migration-foto-url-nullable.sql
 // (foto_url es NOT NULL en el esquema original).
@@ -30,11 +32,28 @@ const valor = (n, def) => {
   return a ? a.slice(n.length + 1) : def
 }
 
-const FECHA_CORTE = valor('--fecha', '2026-07-01')
+const DESDE = valor('--desde', null)
+const HASTA = valor('--hasta', null)
+const MODO_RANGO = DESDE !== null || HASTA !== null
+const FECHA_CORTE = valor('--fecha', MODO_RANGO ? null : '2026-07-01')
 const SOLO_CONTEO = flag('--dry') || flag('--dry-run')
 const SIN_PREGUNTAR = flag('--si') || flag('--yes')
 
-if (!/^\d{4}-\d{2}-\d{2}$/.test(FECHA_CORTE)) {
+const ISO_FECHA = /^\d{4}-\d{2}-\d{2}$/
+if (MODO_RANGO) {
+  if (!DESDE || !HASTA) {
+    console.error('❌ El modo rango requiere ambos --desde=YYYY-MM-DD y --hasta=YYYY-MM-DD.')
+    process.exit(1)
+  }
+  if (!ISO_FECHA.test(DESDE) || !ISO_FECHA.test(HASTA)) {
+    console.error(`❌ Fecha inválida en --desde/--hasta (formato esperado YYYY-MM-DD).`)
+    process.exit(1)
+  }
+  if (DESDE > HASTA) {
+    console.error(`❌ --desde (${DESDE}) es posterior a --hasta (${HASTA}).`)
+    process.exit(1)
+  }
+} else if (!ISO_FECHA.test(FECHA_CORTE)) {
   console.error(`❌ Fecha inválida: ${FECHA_CORTE} (formato esperado YYYY-MM-DD)`)
   process.exit(1)
 }
@@ -81,6 +100,13 @@ function inicioDiaMX(fecha) {
   return new Date(Date.UTC(year, month - 1, day, 0, 0, 0) - offsetMin * 60000)
 }
 
+/** Siguiente día calendario a `fecha` (YYYY-MM-DD), como string YYYY-MM-DD. */
+function siguienteDia(fecha) {
+  const [year, month, day] = fecha.split('-').map(Number)
+  const d = new Date(Date.UTC(year, month - 1, day + 1))
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
+}
+
 /** Extrae la ruta dentro del bucket a partir de la URL pública. */
 function rutaDeUrl(url) {
   const marca = `/${BUCKET}/`
@@ -100,21 +126,27 @@ function preguntar(texto) {
 
 // ---------- main ----------
 async function main() {
-  const corte = inicioDiaMX(FECHA_CORTE)
+  const limiteInferior = MODO_RANGO ? inicioDiaMX(DESDE) : null
+  const limiteSuperior = MODO_RANGO ? inicioDiaMX(siguienteDia(HASTA)) : inicioDiaMX(FECHA_CORTE)
+  const etiquetaRango = MODO_RANGO
+    ? `viajes con created_at entre ${DESDE} 00:00 y ${HASTA} 23:59:59 (${ZONA_MX}) = [${limiteInferior.toISOString()}, ${limiteSuperior.toISOString()})`
+    : `viajes con created_at < ${FECHA_CORTE} 00:00 (${ZONA_MX}) = ${limiteSuperior.toISOString()}`
 
   console.log(`Bucket:      ${BUCKET}`)
-  console.log(`Corte:       viajes con created_at < ${FECHA_CORTE} 00:00 (${ZONA_MX}) = ${corte.toISOString()}`)
+  console.log(`Rango:       ${etiquetaRango}`)
   console.log('Buscando viajes con foto...\n')
 
   const viajes = []
-  for (let desde = 0; ; desde += PAGINA) {
-    const { data, error } = await supabase
+  for (let offset = 0; ; offset += PAGINA) {
+    let q = supabase
       .from('viajes')
       .select('id, created_at, foto_url')
-      .lt('created_at', corte.toISOString())
+      .lt('created_at', limiteSuperior.toISOString())
       .not('foto_url', 'is', null)
+    if (limiteInferior) q = q.gte('created_at', limiteInferior.toISOString())
+    const { data, error } = await q
       .order('created_at', { ascending: true })
-      .range(desde, desde + PAGINA - 1)
+      .range(offset, offset + PAGINA - 1)
     if (error) {
       console.error(`❌ Error consultando viajes: ${error.message}`)
       process.exit(1)
@@ -134,7 +166,7 @@ async function main() {
   const rutas = [...new Set(conRuta.map(v => v.ruta))]
 
   console.log('──────────── Resumen ────────────')
-  console.log(`Viajes anteriores a ${FECHA_CORTE} con foto: ${viajes.length}`)
+  console.log(`Viajes en el rango con foto:               ${viajes.length}`)
   console.log(`Archivos a borrar del storage:            ${rutas.length}`)
   console.log(`Registros a dejar con foto_url = NULL:    ${conRuta.length}`)
   if (sinRuta.length) {
@@ -164,7 +196,8 @@ async function main() {
   }
 
   // Respaldo del mapeo id → foto_url antes de cualquier cambio
-  const respaldo = `respaldo-foto-url-${FECHA_CORTE}-${Date.now()}.json`
+  const sufijoRespaldo = MODO_RANGO ? `${DESDE}_a_${HASTA}` : FECHA_CORTE
+  const respaldo = `respaldo-foto-url-${sufijoRespaldo}-${Date.now()}.json`
   writeFileSync(respaldo, JSON.stringify(conRuta, null, 2))
   console.log(`\nRespaldo de id → foto_url: ${respaldo}`)
 
