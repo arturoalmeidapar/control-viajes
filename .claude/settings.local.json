@@ -25,7 +25,28 @@
       "PowerShell(Get-ChildItem *)",
       "PowerShell(vercel *)",
       "PowerShell(npm i *)",
-      "PowerShell(npm install *)"
+      "PowerShell(npm install *)",
+      "Bash(supabase --version)",
+      "Bash(npx tsc *)",
+      "Bash(curl *)",
+      "Bash(ls -la .supabase)",
+      "Bash(cat supabase/config.toml)",
+      "Bash(git *)",
+      "Bash(env)",
+      "Bash(printenv)",
+      "Bash(node *)",
+      "Bash(Get-ChildItem *)",
+      "Bash(Get-Content supabase/migration-obra-cobro.sql)",
+      "Bash(Set-Clipboard)",
+      "PowerShell(Set-Clipboard *)",
+      "Bash(Select-Object FullName)",
+      "PowerShell(head *)",
+      "Bash(vercel *)",
+      "Bash(npx tsx *)",
+      "Bash(npx --yes vercel whoami)",
+      "Bash(npx --yes vercel --prod --yes)",
+      "Bash(taskkill //F //IM node.exe //T)",
+      "Bash(command -v vercel)"
     ]
   }
 }

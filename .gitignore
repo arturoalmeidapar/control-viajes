@@ -31,8 +31,14 @@ yarn-error.log*
 # vercel
 .vercel
 
+# respaldos de la limpieza de fotos (scripts/limpiar-fotos-antiguas.mjs)
+respaldo-foto-url-*.json
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 
 .vercel
+
+# supabase CLI
+supabase/.temp

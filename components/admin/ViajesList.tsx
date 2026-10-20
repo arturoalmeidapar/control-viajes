@@ -22,6 +22,11 @@ interface Toast {
   mensaje: string
 }
 
+/** Formatea una fecha 'YYYY-MM-DD' sin desfase de zona horaria. */
+function fechaCorta(iso: string): string {
+  return new Date(`${iso}T12:00:00`).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
 interface Checador {
   id: string
   nombre: string
@@ -66,6 +71,10 @@ export function ViajesAdmin({ obras, contratistas, unidades, distancias, tarifas
   const [viajeARechazar, setViajeARechazar] = useState<Viaje | null>(null)
   const [motivoRechazo, setMotivoRechazo] = useState('')
   const [procesando, setProcesando] = useState(false)
+
+  // Confirmación masiva
+  const [confirmarMasivoAbierto, setConfirmarMasivoAbierto] = useState(false)
+  const [confirmandoMasivo, setConfirmandoMasivo] = useState(false)
 
   // Menú móvil
   const [menuAbiertoId, setMenuAbiertoId] = useState<string | null>(null)
@@ -148,6 +157,41 @@ export function ViajesAdmin({ obras, contratistas, unidades, distancias, tarifas
     }
   }
 
+  async function ejecutarConfirmarMasivo() {
+    const ids = viajesPendientes.map(v => v.id)
+    if (ids.length === 0) return
+    setConfirmandoMasivo(true)
+    const supabase = createClient()
+    const timestamp = new Date().toISOString()
+    const { error, count } = await supabase
+      .from('viajes')
+      .update({
+        estado: 'confirmado',
+        residente_id: adminId ?? null,
+        residente_timestamp: timestamp,
+        motivo_rechazo: null,
+      }, { count: 'exact' })
+      .in('id', ids)
+      .eq('estado', 'pendiente')
+    setConfirmandoMasivo(false)
+    setConfirmarMasivoAbierto(false)
+    if (error || !count) {
+      setToast({ tipo: 'error', mensaje: 'No se pudieron confirmar los viajes. Verifica los permisos RLS en Supabase.' })
+      return
+    }
+    const confirmados = new Set(ids)
+    setViajes(prev => prev.map(v => confirmados.has(v.id) && v.estado === 'pendiente'
+      ? { ...v, estado: 'confirmado' as EstadoViaje, residente_id: adminId ?? null, residente_timestamp: timestamp, motivo_rechazo: null }
+      : v
+    ))
+    setToast({
+      tipo: 'exito',
+      mensaje: count === ids.length
+        ? `${count} viaje${count === 1 ? '' : 's'} confirmado${count === 1 ? '' : 's'}.`
+        : `${count} de ${ids.length} viajes confirmados. Vuelve a buscar para ver el estado actual.`,
+    })
+  }
+
   async function ejecutarRechazar() {
     if (!viajeARechazar || motivoRechazo.trim().length < 10) return
     setProcesando(true)
@@ -215,6 +259,13 @@ export function ViajesAdmin({ obras, contratistas, unidades, distancias, tarifas
 
   const totalM3 = viajes.filter(v => v.estado === 'confirmado').reduce((s, v) => s + v.m3, 0)
   const totalImporte = viajes.filter(v => v.estado === 'confirmado').reduce((s, v) => s + v.importe_calculado, 0)
+
+  // Confirmación masiva: solo admin, con filtro de obra y rango de fechas aplicados y pendientes en el resultado
+  const viajesPendientes = viajes.filter(v => v.estado === 'pendiente')
+  const obraFiltrada = obras.find(o => o.id === obraId)
+  const puedeConfirmarMasivo = esAdmin && cargado && !!obraId && !!fechaDesde && !!fechaHasta && viajesPendientes.length > 0
+  const m3Pendientes = viajesPendientes.reduce((s, v) => s + v.m3, 0)
+  const importePendiente = viajesPendientes.reduce((s, v) => s + v.importe_calculado, 0)
 
   return (
     <div className="space-y-4">
@@ -285,11 +336,26 @@ export function ViajesAdmin({ obras, contratistas, unidades, distancias, tarifas
 
       {/* Totales */}
       {cargado && (
-        <div className="flex gap-4 text-sm">
+        <div className="flex flex-wrap gap-4 text-sm">
           <span className="font-medium text-gray-700">{viajes.length} viajes encontrados</span>
           <span className="text-green-700">✓ {totalM3.toFixed(1)}m³ confirmados</span>
           <span className="text-naranja-600 font-bold">{formatMoneda(totalImporte)}</span>
+          {viajesPendientes.length > 0 && (
+            <span className="text-yellow-700">{viajesPendientes.length} pendiente{viajesPendientes.length === 1 ? '' : 's'}</span>
+          )}
         </div>
+      )}
+
+      {/* Confirmación masiva */}
+      {puedeConfirmarMasivo && (
+        <button
+          onClick={() => setConfirmarMasivoAbierto(true)}
+          disabled={procesando || confirmandoMasivo}
+          className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors disabled:opacity-50"
+        >
+          <CheckCircle className="w-4 h-4" />
+          Confirmar todos los pendientes ({viajesPendientes.length})
+        </button>
       )}
 
       {/* Tabla */}
@@ -436,7 +502,10 @@ export function ViajesAdmin({ obras, contratistas, unidades, distancias, tarifas
       {viajeDetalle && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setViajeDetalle(null)}>
           <div className="bg-white rounded-2xl p-4 max-w-sm w-full mx-4 space-y-3" onClick={e => e.stopPropagation()}>
-            <Image src={viajeDetalle.foto_url} alt="Foto" width={400} height={300} className="w-full rounded-xl" />
+            {viajeDetalle.foto_url
+              ? <Image src={viajeDetalle.foto_url} alt="Foto" width={400} height={300} className="w-full rounded-xl" />
+              : <p className="text-sm text-gray-500 text-center py-6">La foto de este viaje ya fue depurada del almacenamiento.</p>
+            }
             {viajeDetalle.motivo_rechazo && (
               <div className="bg-red-50 rounded-xl px-3 py-2 text-sm text-red-700">
                 <span className="font-semibold">Motivo rechazo:</span> {viajeDetalle.motivo_rechazo}
@@ -464,6 +533,46 @@ export function ViajesAdmin({ obras, contratistas, unidades, distancias, tarifas
           onClose={() => setViajeAEditar(null)}
           onGuardado={handleViajeEditado}
         />
+      )}
+
+      {/* Modal confirmación masiva */}
+      {confirmarMasivoAbierto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => !confirmandoMasivo && setConfirmarMasivoAbierto(false)}>
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-green-100 rounded-xl flex-shrink-0">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">
+                  ¿Confirmar {viajesPendientes.length} viaje{viajesPendientes.length === 1 ? '' : 's'}?
+                </h3>
+                <p className="text-sm text-gray-500 mt-0.5">Se confirmarán todos los pendientes del filtro actual.</p>
+              </div>
+            </div>
+            <div className="bg-gray-50 rounded-xl px-3 py-2 text-sm text-gray-700 space-y-0.5">
+              <div className="font-medium">{obraFiltrada?.nombre ?? 'Obra seleccionada'}</div>
+              <div className="text-gray-500">{fechaCorta(fechaDesde)} — {fechaCorta(fechaHasta)}</div>
+              <div className="text-gray-500">{m3Pendientes.toFixed(1)}m³ · {formatMoneda(importePendiente)}</div>
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button
+                className="btn-secondary flex-1 py-2.5"
+                onClick={() => setConfirmarMasivoAbierto(false)}
+                disabled={confirmandoMasivo}
+              >
+                Cancelar
+              </button>
+              <button
+                className="flex-1 py-2.5 rounded-xl bg-green-600 text-white font-semibold text-sm hover:bg-green-700 transition-colors disabled:opacity-50"
+                onClick={ejecutarConfirmarMasivo}
+                disabled={confirmandoMasivo}
+              >
+                {confirmandoMasivo ? 'Confirmando...' : 'Confirmar todos'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modal rechazar viaje */}

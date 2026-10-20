@@ -19,13 +19,25 @@ interface Props {
   checadorId: string
 }
 
-async function comprimirFoto(file: File, maxBytes = 400 * 1024): Promise<File> {
+/** Lado más largo de la foto comprimida: suficiente para leer placas y folios en la evidencia. */
+const MAX_DIM = 1280
+/** Calidad JPEG inicial. */
+const CALIDAD_INICIAL = 0.6
+/** Calidad mínima: por debajo de esto la evidencia deja de ser legible. */
+const CALIDAD_MINIMA = 0.4
+
+/**
+ * Reescala la foto a MAX_DIM en el lado más largo y la recodifica a JPEG al 60% de calidad,
+ * bajando la calidad en pasos hasta llegar a maxBytes (objetivo ~100-150 KB por foto).
+ * El timestamp y el GPS no viajan en el EXIF (el canvas lo descarta): se guardan en las
+ * columnas foto_timestamp / gps_lat / gps_lng del viaje al registrarlo.
+ */
+async function comprimirFoto(file: File, maxBytes = 150 * 1024): Promise<File> {
   return new Promise(resolve => {
     const objectUrl = URL.createObjectURL(file)
     const img = new window.Image()
     img.onload = () => {
       URL.revokeObjectURL(objectUrl)
-      const MAX_DIM = 1920
       let { width, height } = img
       if (width > MAX_DIM || height > MAX_DIM) {
         const ratio = Math.min(MAX_DIM / width, MAX_DIM / height)
@@ -36,14 +48,14 @@ async function comprimirFoto(file: File, maxBytes = 400 * 1024): Promise<File> {
       canvas.width = width
       canvas.height = height
       canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
-      let quality = 0.85
+      let quality = CALIDAD_INICIAL
       const compress = () => {
         canvas.toBlob(blob => {
           if (!blob) { resolve(file); return }
-          if (blob.size <= maxBytes || quality <= 0.1) {
+          if (blob.size <= maxBytes || quality <= CALIDAD_MINIMA) {
             resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }))
           } else {
-            quality = Math.max(0.1, quality - 0.15)
+            quality = Math.max(CALIDAD_MINIMA, quality - 0.1)
             compress()
           }
         }, 'image/jpeg', quality)

@@ -75,7 +75,8 @@ export interface Viaje {
   tipo_material: TipoMaterial
   distancia_km: number
   importe_calculado: number
-  foto_url: string
+  /** null cuando la foto ya fue purgada del storage (ver scripts/limpiar-fotos-antiguas.mjs). */
+  foto_url: string | null
   gps_lat: number | null
   gps_lng: number | null
   foto_timestamp: string
